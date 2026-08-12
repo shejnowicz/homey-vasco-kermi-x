@@ -1,0 +1,9 @@
+.env
+.env.*
+*.mitm
+captures/
+private-fixtures/
+*.pcap
+*.pcapng
+.homeybuild/
+node_modules/

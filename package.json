@@ -1,0 +1,11 @@
+{
+  "name": "com.shejnowicz.vasco-kermi-x",
+  "version": "0.1.0",
+  "private": true,
+  "main": "app.js",
+  "scripts": {
+    "test": "node --test test",
+    "validate": "homey app validate --level publish",
+    "build": "homey app build"
+  }
+}

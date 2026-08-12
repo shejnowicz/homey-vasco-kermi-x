@@ -1,0 +1,1 @@
+require('./secret-safety.test');
