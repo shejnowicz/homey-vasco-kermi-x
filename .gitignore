@@ -7,3 +7,4 @@ private-fixtures/
 *.pcapng
 .homeybuild/
 node_modules/
+.worktrees/
