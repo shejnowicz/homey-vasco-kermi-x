@@ -11,8 +11,7 @@ const {
 const { VascoProtocolError } = require('../../lib/vasco-errors');
 
 test('discovers compatible ventilation units in account order with stable opaque identities', () => {
-  const configuration = { deviceProperties: fixture.deviceProperties.slice(0, 3) };
-  const discovered = discoverVentilationDevices(configuration);
+  const discovered = discoverVentilationDevices(fixture);
 
   assert.equal(discovered.length, 2);
   assert.deepEqual(discovered.map(device => ({
@@ -42,17 +41,16 @@ test('discovers compatible ventilation units in account order with stable opaque
 });
 
 test('ignores unrelated RF devices during ventilation discovery', () => {
-  const configuration = { deviceProperties: fixture.deviceProperties.slice(0, 3) };
-  const discovered = discoverVentilationDevices(configuration);
+  const discovered = discoverVentilationDevices(fixture);
 
   assert.ok(discovered.every(device => device.deviceRef !== 'synthetic-device-rf'));
 });
 
-test('discovery reports malformed ventilation candidates without exposing their private references', () => {
+test('reports malformed ventilation candidates without exposing their private references', () => {
   const malformed = fixture.deviceProperties[3];
 
   assert.throws(
-    () => discoverVentilationDevices({ deviceProperties: [malformed] }),
+    () => assertSupportedDevice(malformed),
     (error) => {
       assert.ok(error instanceof VascoProtocolError);
       assert.match(error.message, /Vasco X200/);
@@ -65,6 +63,28 @@ test('discovery reports malformed ventilation candidates without exposing their 
 
 test('assertSupportedDevice accepts a compatible ventilation unit', () => {
   assert.doesNotThrow(() => assertSupportedDevice(fixture.deviceProperties[0]));
+});
+
+test('rejects empty or wrongly typed required identity and state fields', () => {
+  const supported = fixture.deviceProperties[0];
+  const invalidFields = [
+    ['bridgeId', ''],
+    ['deviceId', 42],
+    ['product', '   '],
+    ['controlMode', 1],
+    ['level', Number.NaN],
+    ['requestedLevel', '3'],
+    ['fanSpeedInlet', Number.POSITIVE_INFINITY],
+    ['fanSpeedExhaust', '39'],
+  ];
+
+  for (const [field, value] of invalidFields) {
+    assert.throws(
+      () => assertSupportedDevice({ ...supported, [field]: value }),
+      VascoProtocolError,
+      `${field} should be rejected`,
+    );
+  }
 });
 
 test('maps known state properties and represents absent optional temperatures as null', () => {
