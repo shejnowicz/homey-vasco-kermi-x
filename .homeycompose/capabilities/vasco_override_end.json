@@ -1,0 +1,10 @@
+{
+  "type": "string",
+  "title": {
+    "en": "Override end",
+    "pl": "Koniec ręcznego sterowania"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor"
+}

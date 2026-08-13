@@ -1,0 +1,10 @@
+{
+  "settings": {
+    "vasco_email": "Vasco email",
+    "vasco_password": "Vasco password",
+    "poll_interval": "Polling interval",
+    "default_duration_type": "Default control duration",
+    "default_duration_minutes": "Default duration",
+    "default_fireplace_minutes": "Default fireplace duration"
+  }
+}

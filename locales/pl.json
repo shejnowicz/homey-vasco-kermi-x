@@ -1,0 +1,10 @@
+{
+  "settings": {
+    "vasco_email": "E-mail Vasco",
+    "vasco_password": "Hasło Vasco",
+    "poll_interval": "Interwał odpytywania",
+    "default_duration_type": "Domyślny czas sterowania",
+    "default_duration_minutes": "Domyślny czas trwania",
+    "default_fireplace_minutes": "Domyślny czas trybu kominka"
+  }
+}

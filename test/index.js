@@ -4,3 +4,4 @@ require('./unit/vasco-account-registry.test');
 require('./unit/vasco-account-service.test');
 require('./unit/vasco-command-builder.test');
 require('./unit/vasco-device-mapper.test');
+require('./unit/homey-manifest.test');

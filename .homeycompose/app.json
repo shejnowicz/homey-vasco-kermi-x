@@ -1,0 +1,21 @@
+{
+  "id": "com.shejnowicz.vasco-kermi-x",
+  "version": "0.1.0",
+  "compatibility": ">=12.4.0",
+  "sdk": 3,
+  "runtime": "nodejs",
+  "platforms": ["local"],
+  "name": {
+    "en": "Vasco/Kermi X Series",
+    "pl": "Vasco/Kermi seria X"
+  },
+  "description": {
+    "en": "Control Vasco and Kermi X Series ventilation units",
+    "pl": "Sterowanie centralami wentylacyjnymi Vasco i Kermi serii X"
+  },
+  "author": {
+    "name": "Seweryn Hejnowicz"
+  },
+  "category": ["climate"],
+  "permissions": []
+}

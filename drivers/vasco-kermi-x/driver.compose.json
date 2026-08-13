@@ -1,0 +1,43 @@
+{
+  "name": {
+    "en": "Vasco/Kermi X Series Ventilation Unit",
+    "pl": "Centrala wentylacyjna Vasco/Kermi serii X"
+  },
+  "class": "sensor",
+  "connectivity": ["cloud"],
+  "capabilities": [
+    "vasco_mode",
+    "measure_temperature.indoor",
+    "measure_temperature.outdoor",
+    "vasco_supply_fan",
+    "vasco_exhaust_fan",
+    "vasco_bypass",
+    "vasco_control_state",
+    "vasco_override_end",
+    "vasco_fireplace",
+    "alarm_filter",
+    "alarm_generic",
+    "alarm_defrost",
+    "alarm_rf",
+    "vasco_test_connection"
+  ],
+  "capabilitiesOptions": {
+    "measure_temperature.indoor": {
+      "title": { "en": "Indoor temperature", "pl": "Temperatura wewnętrzna" }
+    },
+    "measure_temperature.outdoor": {
+      "title": { "en": "Outdoor temperature", "pl": "Temperatura zewnętrzna" }
+    },
+    "alarm_generic": {
+      "title": { "en": "Fault", "pl": "Usterka" }
+    },
+    "vasco_test_connection": {
+      "maintenanceAction": true,
+      "title": { "en": "Test connection", "pl": "Test połączenia" },
+      "desc": {
+        "en": "Check whether the saved Vasco credentials can connect to the cloud service.",
+        "pl": "Sprawdź, czy zapisane dane Vasco umożliwiają połączenie z usługą chmurową."
+      }
+    }
+  }
+}

@@ -1,19 +1,415 @@
 {
+  "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "com.shejnowicz.vasco-kermi-x",
   "version": "0.1.0",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
-  "platforms": ["local"],
+  "platforms": [
+    "local"
+  ],
   "name": {
-    "en": "Vasco/Kermi X Series"
+    "en": "Vasco/Kermi X Series",
+    "pl": "Vasco/Kermi seria X"
   },
   "description": {
-    "en": "Control Vasco and Kermi X Series ventilation units"
+    "en": "Control Vasco and Kermi X Series ventilation units",
+    "pl": "Sterowanie centralami wentylacyjnymi Vasco i Kermi serii X"
   },
   "author": {
     "name": "Seweryn Hejnowicz"
   },
-  "category": ["climate"],
-  "permissions": []
+  "category": [
+    "climate"
+  ],
+  "permissions": [],
+  "drivers": [
+    {
+      "name": {
+        "en": "Vasco/Kermi X Series Ventilation Unit",
+        "pl": "Centrala wentylacyjna Vasco/Kermi serii X"
+      },
+      "class": "sensor",
+      "connectivity": [
+        "cloud"
+      ],
+      "capabilities": [
+        "vasco_mode",
+        "measure_temperature.indoor",
+        "measure_temperature.outdoor",
+        "vasco_supply_fan",
+        "vasco_exhaust_fan",
+        "vasco_bypass",
+        "vasco_control_state",
+        "vasco_override_end",
+        "vasco_fireplace",
+        "alarm_filter",
+        "alarm_generic",
+        "alarm_defrost",
+        "alarm_rf",
+        "vasco_test_connection"
+      ],
+      "capabilitiesOptions": {
+        "measure_temperature.indoor": {
+          "title": {
+            "en": "Indoor temperature",
+            "pl": "Temperatura wewnętrzna"
+          }
+        },
+        "measure_temperature.outdoor": {
+          "title": {
+            "en": "Outdoor temperature",
+            "pl": "Temperatura zewnętrzna"
+          }
+        },
+        "alarm_generic": {
+          "title": {
+            "en": "Fault",
+            "pl": "Usterka"
+          }
+        },
+        "vasco_test_connection": {
+          "maintenanceAction": true,
+          "title": {
+            "en": "Test connection",
+            "pl": "Test połączenia"
+          },
+          "desc": {
+            "en": "Check whether the saved Vasco credentials can connect to the cloud service.",
+            "pl": "Sprawdź, czy zapisane dane Vasco umożliwiają połączenie z usługą chmurową."
+          }
+        }
+      },
+      "id": "vasco-kermi-x",
+      "settings": [
+        {
+          "id": "vasco_email",
+          "type": "text",
+          "label": {
+            "en": "Vasco email",
+            "pl": "E-mail Vasco"
+          },
+          "hint": {
+            "en": "Email address for the Vasco account.",
+            "pl": "Adres e-mail konta Vasco."
+          }
+        },
+        {
+          "id": "vasco_password",
+          "type": "password",
+          "label": {
+            "en": "Vasco password",
+            "pl": "Hasło Vasco"
+          },
+          "hint": {
+            "en": "Password for the Vasco account.",
+            "pl": "Hasło do konta Vasco."
+          }
+        },
+        {
+          "id": "poll_interval",
+          "type": "dropdown",
+          "label": {
+            "en": "Polling interval",
+            "pl": "Interwał odpytywania"
+          },
+          "value": "60",
+          "values": [
+            {
+              "id": "30",
+              "label": {
+                "en": "30 seconds",
+                "pl": "30 sekund"
+              }
+            },
+            {
+              "id": "60",
+              "label": {
+                "en": "1 minute",
+                "pl": "1 minuta"
+              }
+            },
+            {
+              "id": "120",
+              "label": {
+                "en": "2 minutes",
+                "pl": "2 minuty"
+              }
+            },
+            {
+              "id": "300",
+              "label": {
+                "en": "5 minutes",
+                "pl": "5 minut"
+              }
+            },
+            {
+              "id": "600",
+              "label": {
+                "en": "10 minutes",
+                "pl": "10 minut"
+              }
+            }
+          ]
+        },
+        {
+          "id": "default_duration_type",
+          "type": "dropdown",
+          "label": {
+            "en": "Default control duration",
+            "pl": "Domyślny czas sterowania"
+          },
+          "value": "schedule",
+          "values": [
+            {
+              "id": "schedule",
+              "label": {
+                "en": "Until next schedule change",
+                "pl": "Do następnej zmiany harmonogramu"
+              }
+            },
+            {
+              "id": "permanent",
+              "label": {
+                "en": "Permanently",
+                "pl": "Na stałe"
+              }
+            },
+            {
+              "id": "minutes",
+              "label": {
+                "en": "Specified duration",
+                "pl": "Określony czas"
+              }
+            }
+          ]
+        },
+        {
+          "id": "default_duration_minutes",
+          "type": "number",
+          "label": {
+            "en": "Default duration",
+            "pl": "Domyślny czas trwania"
+          },
+          "value": 60,
+          "min": 1,
+          "max": 1440,
+          "step": 1,
+          "units": {
+            "en": "minutes",
+            "pl": "minuty"
+          }
+        },
+        {
+          "id": "default_fireplace_minutes",
+          "type": "number",
+          "label": {
+            "en": "Default fireplace duration",
+            "pl": "Domyślny czas trybu kominka"
+          },
+          "value": 5,
+          "min": 1,
+          "max": 1440,
+          "step": 1,
+          "units": {
+            "en": "minutes",
+            "pl": "minuty"
+          }
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "alarm_defrost": {
+      "type": "boolean",
+      "title": {
+        "en": "Defrost active",
+        "pl": "Odszranianie aktywne"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor"
+    },
+    "alarm_filter": {
+      "type": "boolean",
+      "title": {
+        "en": "Filter warning",
+        "pl": "Ostrzeżenie o filtrze"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor"
+    },
+    "alarm_rf": {
+      "type": "boolean",
+      "title": {
+        "en": "RF communication problem",
+        "pl": "Problem z komunikacją RF"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor"
+    },
+    "vasco_bypass": {
+      "type": "number",
+      "title": {
+        "en": "Bypass position",
+        "pl": "Pozycja bypassu"
+      },
+      "units": {
+        "en": "%",
+        "pl": "%"
+      },
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor"
+    },
+    "vasco_control_state": {
+      "type": "enum",
+      "title": {
+        "en": "Control state",
+        "pl": "Stan sterowania"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "values": [
+        {
+          "id": "schedule",
+          "title": {
+            "en": "Schedule",
+            "pl": "Harmonogram"
+          }
+        },
+        {
+          "id": "manual",
+          "title": {
+            "en": "Manual override",
+            "pl": "Ręczne sterowanie"
+          }
+        }
+      ]
+    },
+    "vasco_exhaust_fan": {
+      "type": "number",
+      "title": {
+        "en": "Exhaust fan speed",
+        "pl": "Prędkość wywiewu"
+      },
+      "units": {
+        "en": "%",
+        "pl": "%"
+      },
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor"
+    },
+    "vasco_fireplace": {
+      "type": "boolean",
+      "title": {
+        "en": "Fireplace mode",
+        "pl": "Tryb kominka"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "toggle"
+    },
+    "vasco_mode": {
+      "type": "enum",
+      "title": {
+        "en": "Operating mode",
+        "pl": "Tryb pracy"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "picker",
+      "values": [
+        {
+          "id": "low",
+          "title": {
+            "en": "Low",
+            "pl": "Niski"
+          }
+        },
+        {
+          "id": "medium",
+          "title": {
+            "en": "Medium",
+            "pl": "Średni"
+          }
+        },
+        {
+          "id": "high",
+          "title": {
+            "en": "High",
+            "pl": "Wysoki"
+          }
+        },
+        {
+          "id": "auto",
+          "title": {
+            "en": "Auto",
+            "pl": "Automatyczny"
+          }
+        },
+        {
+          "id": "holidays",
+          "title": {
+            "en": "Holidays",
+            "pl": "Urlop"
+          }
+        },
+        {
+          "id": "guests",
+          "title": {
+            "en": "Guests",
+            "pl": "Goście"
+          }
+        }
+      ]
+    },
+    "vasco_override_end": {
+      "type": "string",
+      "title": {
+        "en": "Override end",
+        "pl": "Koniec ręcznego sterowania"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor"
+    },
+    "vasco_supply_fan": {
+      "type": "number",
+      "title": {
+        "en": "Supply fan speed",
+        "pl": "Prędkość nawiewu"
+      },
+      "units": {
+        "en": "%",
+        "pl": "%"
+      },
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor"
+    },
+    "vasco_test_connection": {
+      "type": "boolean",
+      "title": {
+        "en": "Test connection",
+        "pl": "Test połączenia"
+      },
+      "getable": false,
+      "setable": true,
+      "uiComponent": "button"
+    }
+  }
 }

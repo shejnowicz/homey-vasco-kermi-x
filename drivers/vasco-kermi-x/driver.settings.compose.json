@@ -1,0 +1,58 @@
+[
+  {
+    "id": "vasco_email",
+    "type": "text",
+    "label": { "en": "Vasco email", "pl": "E-mail Vasco" },
+    "hint": { "en": "Email address for the Vasco account.", "pl": "Adres e-mail konta Vasco." }
+  },
+  {
+    "id": "vasco_password",
+    "type": "password",
+    "label": { "en": "Vasco password", "pl": "Hasło Vasco" },
+    "hint": { "en": "Password for the Vasco account.", "pl": "Hasło do konta Vasco." }
+  },
+  {
+    "id": "poll_interval",
+    "type": "dropdown",
+    "label": { "en": "Polling interval", "pl": "Interwał odpytywania" },
+    "value": "60",
+    "values": [
+      { "id": "30", "label": { "en": "30 seconds", "pl": "30 sekund" } },
+      { "id": "60", "label": { "en": "1 minute", "pl": "1 minuta" } },
+      { "id": "120", "label": { "en": "2 minutes", "pl": "2 minuty" } },
+      { "id": "300", "label": { "en": "5 minutes", "pl": "5 minut" } },
+      { "id": "600", "label": { "en": "10 minutes", "pl": "10 minut" } }
+    ]
+  },
+  {
+    "id": "default_duration_type",
+    "type": "dropdown",
+    "label": { "en": "Default control duration", "pl": "Domyślny czas sterowania" },
+    "value": "schedule",
+    "values": [
+      { "id": "schedule", "label": { "en": "Until next schedule change", "pl": "Do następnej zmiany harmonogramu" } },
+      { "id": "permanent", "label": { "en": "Permanently", "pl": "Na stałe" } },
+      { "id": "minutes", "label": { "en": "Specified duration", "pl": "Określony czas" } }
+    ]
+  },
+  {
+    "id": "default_duration_minutes",
+    "type": "number",
+    "label": { "en": "Default duration", "pl": "Domyślny czas trwania" },
+    "value": 60,
+    "min": 1,
+    "max": 1440,
+    "step": 1,
+    "units": { "en": "minutes", "pl": "minuty" }
+  },
+  {
+    "id": "default_fireplace_minutes",
+    "type": "number",
+    "label": { "en": "Default fireplace duration", "pl": "Domyślny czas trybu kominka" },
+    "value": 5,
+    "min": 1,
+    "max": 1440,
+    "step": 1,
+    "units": { "en": "minutes", "pl": "minuty" }
+  }
+]

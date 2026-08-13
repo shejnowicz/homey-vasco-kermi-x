@@ -1,0 +1,14 @@
+{
+  "type": "enum",
+  "title": {
+    "en": "Control state",
+    "pl": "Stan sterowania"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "values": [
+    { "id": "schedule", "title": { "en": "Schedule", "pl": "Harmonogram" } },
+    { "id": "manual", "title": { "en": "Manual override", "pl": "Ręczne sterowanie" } }
+  ]
+}

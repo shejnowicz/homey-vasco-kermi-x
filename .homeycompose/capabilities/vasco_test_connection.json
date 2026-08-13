@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Test connection",
+    "pl": "Test połączenia"
+  },
+  "getable": false,
+  "setable": true,
+  "uiComponent": "button"
+}
