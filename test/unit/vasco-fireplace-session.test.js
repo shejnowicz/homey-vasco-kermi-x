@@ -13,7 +13,7 @@ const { buildModeCommand } = require('../../lib/vasco-command-builder');
 
 const NOW_MS = 1_700_000_000_000;
 
-test('createManagedSession stores only the versioned non-sensitive snapshot for a supported picker duration', () => {
+test('createManagedSession stores only the versioned non-sensitive snapshot for a supported duration', () => {
   const session = createManagedSession({
     requestedMode: 4,
     controlMode: 'manual',
@@ -68,23 +68,26 @@ test('createManagedSession captures schedule and timed control semantics', () =>
   assert.deepEqual(expired.priorDuration, { type: 'schedule' });
 });
 
-test('createManagedSession rejects unsupported durations and malformed mode snapshots', () => {
+test('createManagedSession rejects durations outside the command range and malformed mode snapshots', () => {
   const state = { mode: 4, controlMode: 'schedule', manualSettingActiveTill: 0 };
 
-  for (const minutes of [0, 1, 6, 85.5, 90, Number.NaN]) {
+  for (const minutes of [0, 1.5, 1441, Number.NaN]) {
     assert.throws(() => createManagedSession(state, minutes, NOW_MS), RangeError);
   }
   assert.throws(() => createManagedSession({ ...state, mode: 5 }, 5, NOW_MS), RangeError);
   assert.throws(() => createManagedSession(state, 5, Number.NaN), TypeError);
 });
 
-test('createManagedSession accepts every supported Fireplace picker duration', () => {
+test('createManagedSession accepts Fireplace Flow durations across the command range', () => {
   const state = { mode: 4, controlMode: 'schedule', manualSettingActiveTill: 0 };
-  const minutes = Array.from({ length: 17 }, (_, index) => (index + 1) * 5);
+  const minutes = [1, 90, 1_440];
+  const sessions = minutes.map(value => createManagedSession(state, value, NOW_MS));
 
-  assert.deepEqual(minutes.map(value => (
-    createManagedSession(state, value, NOW_MS).selectedMinutes
-  )), minutes);
+  assert.deepEqual(sessions.map(session => session.selectedMinutes), minutes);
+  assert.deepEqual(
+    sessions.map(session => parseStoredSession(session, NOW_MS + 1)?.selectedMinutes),
+    minutes,
+  );
 });
 
 test('parseStoredSession rejects malformed or sensitive persisted data and expired managed sessions', () => {

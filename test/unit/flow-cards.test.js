@@ -201,13 +201,17 @@ test('app registers Flow listeners once, delegates safely, and delivers device t
   await actions.get('set_mode_until_schedule').listeners[0]({ device, mode: 'auto' });
   await actions.get('set_mode_permanent').listeners[0]({ device, mode: 'guests' });
   await actions.get('set_mode_for_minutes').listeners[0]({ device, mode: 'high', minutes: 30 });
-  await actions.get('enable_fireplace_for_minutes').listeners[0]({ device, minutes: 5 });
+  for (const minutes of [1, 90, 1_440]) {
+    await actions.get('enable_fireplace_for_minutes').listeners[0]({ device, minutes });
+  }
   await actions.get('refresh_state').listeners[0]({ device });
   assert.deepEqual(device.calls, [
     ['setOperatingMode', 'auto', { type: 'schedule' }],
     ['setOperatingMode', 'guests', { type: 'permanent' }],
     ['setOperatingMode', 'high', { type: 'minutes', minutes: 30 }],
-    ['setFireplace', true, 5],
+    ['setFireplace', true, 1],
+    ['setFireplace', true, 90],
+    ['setFireplace', true, 1_440],
     ['refreshState', { force: true }],
   ]);
 

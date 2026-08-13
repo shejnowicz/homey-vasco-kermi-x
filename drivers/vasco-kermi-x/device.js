@@ -115,6 +115,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       });
       this.registerCapabilityListener('button.stop_fireplace', () => this.stopFireplace());
       this.registerCapabilityListener('button.test_connection', () => this.testConnection());
+      await this.restoreFireplaceSession();
 
       try {
         await this.refreshState({ force: false, initial: true });
@@ -231,6 +232,31 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     return queued;
   }
 
+  async restoreFireplaceSession() {
+    return this.enqueueState(async () => {
+      if (!this.fireplaceSession) return false;
+
+      if (Object.hasOwn(this.fireplaceSession, 'suppressUntil')) {
+        if (this.getCapabilityValue('measure_fireplace_remaining') !== null) {
+          await this.setCapabilityValue('measure_fireplace_remaining', null);
+        }
+        this.scheduleFireplaceSuppression();
+        return true;
+      }
+
+      const remaining = remainingMinutes(this.fireplaceSession, this.getNow());
+      if (!Object.is(
+        this.getCapabilityValue('measure_fireplace_remaining'),
+        remaining,
+      )) {
+        await this.setCapabilityValue('measure_fireplace_remaining', remaining);
+      }
+      if (this.deleted) return false;
+      this.scheduleFireplaceCountdown(remaining);
+      return true;
+    });
+  }
+
   async reconcileFireplaceStateNow(rawStatus) {
     const rawActive = flagValue(rawStatus);
     const nowMs = this.getNow();
@@ -246,6 +272,11 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     }
 
     const active = effectiveFireplaceState(rawActive, this.fireplaceSession, nowMs);
+    if (this.fireplaceSession
+      && Object.hasOwn(this.fireplaceSession, 'suppressUntil')) {
+      this.scheduleFireplaceSuppression(nowMs);
+      return { active, remaining: null };
+    }
     if (active === true && this.fireplaceSession
       && !Object.hasOwn(this.fireplaceSession, 'suppressUntil')) {
       const remaining = remainingMinutes(this.fireplaceSession, nowMs);
@@ -271,6 +302,20 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
 
     const nextBoundary = this.fireplaceSession.endsAt - ((remaining - 1) * MINUTE_MS);
     const delayMs = Math.max(1, nextBoundary - nowMs);
+    this.setFireplaceTimer(delayMs);
+  }
+
+  scheduleFireplaceSuppression(nowMs = this.getNow()) {
+    this.clearFireplaceTimer();
+    if (!this.fireplaceSession
+      || !Object.hasOwn(this.fireplaceSession, 'suppressUntil')
+      || this.deleted) return;
+
+    const delayMs = Math.max(1, this.fireplaceSession.suppressUntil - nowMs);
+    this.setFireplaceTimer(delayMs);
+  }
+
+  setFireplaceTimer(delayMs) {
     this.fireplaceTimer = this.homey.setTimeout(() => {
       this.fireplaceTimer = null;
       this.handleFireplaceCountdown().catch((error) => {
@@ -281,8 +326,18 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
 
   async handleFireplaceCountdown() {
     const expired = await this.enqueueState(async () => {
-      if (!this.fireplaceSession
-        || Object.hasOwn(this.fireplaceSession, 'suppressUntil')) return false;
+      if (!this.fireplaceSession) return false;
+
+      if (Object.hasOwn(this.fireplaceSession, 'suppressUntil')) {
+        if (this.getNow() < this.fireplaceSession.suppressUntil) {
+          this.scheduleFireplaceSuppression();
+          return false;
+        }
+        await this.unsetStoreValue(FIREPLACE_SESSION_STORE_KEY);
+        if (this.deleted) return false;
+        this.fireplaceSession = null;
+        return true;
+      }
 
       const remaining = remainingMinutes(this.fireplaceSession, this.getNow());
       if (!Object.is(this.getCapabilityValue('measure_fireplace_remaining'), remaining)) {
@@ -396,6 +451,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     if (enabled !== true) {
       throw new Error('Disabling Fireplace mode is not supported yet.');
     }
+    const commandMinutes = validatedMinutes(minutes, 'Fireplace duration');
 
     let rollback = null;
     try {
@@ -408,7 +464,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
         };
         const session = createManagedSession(
           this.lastObservedState,
-          fireplaceDurationMinutes(minutes),
+          commandMinutes,
           this.getNow(),
         );
         rollback = { previous, session };
@@ -417,7 +473,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       });
       const state = await this.accountService.executeDeviceCommand(
         this.identity,
-        raw => buildFireplaceEnableCommand(raw, { minutes }),
+        raw => buildFireplaceEnableCommand(raw, { minutes: commandMinutes }),
         observed => isFireplaceConfirmed(observed, true),
       );
       await this.applyState(state, { initial: false });
@@ -481,27 +537,65 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       );
     }
 
+    const previous = {
+      active: this.getCapabilityValue('vasco_fireplace'),
+      remaining: this.getCapabilityValue('measure_fireplace_remaining'),
+      timerActive: this.fireplaceTimer !== null && this.fireplaceTimer !== undefined,
+    };
     await this.setOperatingMode(request.mode, request.duration);
-    await this.enqueueState(async () => {
-      if (this.fireplaceSession !== session) return false;
+    const stopped = stoppedSession(session);
+    let persisted = false;
+    try {
+      await this.enqueueState(async () => {
+        if (this.fireplaceSession !== session) return false;
 
-      const stopped = stoppedSession(session);
-      this.fireplaceSession = stopped;
-      await this.setStoreValue(FIREPLACE_SESSION_STORE_KEY, stopped);
-      this.clearFireplaceTimer();
+        await this.setStoreValue(FIREPLACE_SESSION_STORE_KEY, stopped);
+        persisted = true;
+        if (this.deleted) return false;
+        this.fireplaceSession = stopped;
+        this.scheduleFireplaceSuppression();
 
-      const changes = new Map();
-      const previousActive = this.getCapabilityValue('vasco_fireplace');
-      if (previousActive !== false) {
-        await this.setCapabilityValue('vasco_fireplace', false);
-        changes.set('vasco_fireplace', { previous: previousActive, value: false });
+        const changes = new Map();
+        const previousActive = this.getCapabilityValue('vasco_fireplace');
+        if (previousActive !== false) {
+          await this.setCapabilityValue('vasco_fireplace', false);
+          changes.set('vasco_fireplace', { previous: previousActive, value: false });
+        }
+        if (this.getCapabilityValue('measure_fireplace_remaining') !== null) {
+          await this.setCapabilityValue('measure_fireplace_remaining', null);
+        }
+        if (!this.deleted) await this.emitCapabilityTransitions(changes);
+        return true;
+      });
+    } catch (error) {
+      this.error('Vasco Fireplace Stop persistence failed', diagnosticError(error));
+      if (!persisted) {
+        await this.enqueueState(async () => {
+          if (this.fireplaceSession !== session) return false;
+
+          if (!Object.is(this.getCapabilityValue('vasco_fireplace'), previous.active)) {
+            await this.setCapabilityValue('vasco_fireplace', previous.active);
+          }
+          if (!Object.is(
+            this.getCapabilityValue('measure_fireplace_remaining'),
+            previous.remaining,
+          )) {
+            await this.setCapabilityValue(
+              'measure_fireplace_remaining',
+              previous.remaining,
+            );
+          }
+          if (previous.timerActive && previous.active === true) {
+            this.scheduleFireplaceCountdown(
+              remainingMinutes(session, this.getNow()),
+            );
+          }
+          return true;
+        });
+        throw new Error('Homey could not save the stopped Fireplace session.');
       }
-      if (this.getCapabilityValue('measure_fireplace_remaining') !== null) {
-        await this.setCapabilityValue('measure_fireplace_remaining', null);
-      }
-      if (!this.deleted) await this.emitCapabilityTransitions(changes);
-      return true;
-    });
+      throw new Error('Homey could not update the stopped Fireplace session.');
+    }
     return true;
   }
 

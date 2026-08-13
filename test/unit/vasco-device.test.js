@@ -466,6 +466,39 @@ test('Fireplace session restoration resumes remaining time and its minute countd
   assert.equal(clock.timers.size, 1);
 });
 
+test('Fireplace session restoration keeps counting down when the initial cloud read fails', async () => {
+  const service = new AccountServiceDouble();
+  service.readConfiguration = async (options = {}) => {
+    service.reads.push(options);
+    throw new VascoTransportError('private initial read failure');
+  };
+  const { clock, device } = createHarness({ service });
+  const session = {
+    version: 1,
+    priorMode: 'high',
+    priorDuration: { type: 'schedule' },
+    selectedMinutes: 45,
+    startedAt: NOW_MS - 10_000,
+    endsAt: NOW_MS + (44 * 60_000) + 50_000,
+  };
+  device.store.device_contract_version = 2;
+  device.store.fireplace_session = session;
+
+  await device.onInit();
+
+  assert.deepEqual(device.fireplaceSession, session);
+  assert.equal(device.getCapabilityValue('measure_fireplace_remaining'), 45);
+  assert.equal(clock.timers.size, 1);
+  assert.equal([...clock.timers.values()][0].at, NOW_MS + 50_000);
+  assert.equal(device.availability.at(-1).available, false);
+
+  clock.advance(50_000);
+  await settle();
+
+  assert.equal(device.getCapabilityValue('measure_fireplace_remaining'), 44);
+  assert.equal(clock.timers.size, 1);
+});
+
 test('Fireplace remaining time reaches zero, removes the session, and forces reconciliation', async () => {
   const configuration = structuredClone(fixture);
   configuration.deviceProperties[0].fireplaceModeStatus = 1;
@@ -765,6 +798,35 @@ test('Fireplace enable persists the prior state before sending the picker durati
   assert.equal([...device.clock.timers.values()][0].at, NOW_MS + 60_000);
 });
 
+test('Fireplace Flow and internal enable path accepts one through 1440 whole minutes', async (t) => {
+  for (const minutes of [1, 90, 1_440]) {
+    await t.test(`${minutes} minutes`, async () => {
+      const { device, service } = createHarness();
+      device.store.device_contract_version = 2;
+      await device.onInit();
+
+      await device.setFireplace(true, minutes);
+
+      assert.equal(service.commands.length, 1);
+      assert.equal(service.commands[0].command.fireplaceModeTime, minutes);
+      assert.equal(device.fireplaceSession.selectedMinutes, minutes);
+      assert.equal(device.getCapabilityValue('measure_fireplace_remaining'), minutes);
+    });
+  }
+});
+
+test('Fireplace duration picker listener rejects values outside its five-minute choices', async () => {
+  const { device, service } = createHarness();
+  device.store.device_contract_version = 2;
+  await device.onInit();
+  const selectDuration = device.capabilityListeners.get('vasco_fireplace_duration');
+
+  for (const minutes of [1, 6, 90, 1_440]) {
+    assert.throws(() => selectDuration(String(minutes)), /five-minute value/i);
+  }
+  assert.deepEqual(service.commands, []);
+});
+
 test('failed Fireplace enable rolls back its managed session, countdown, and UI with a fixed error', async () => {
   const secret = 'private-fireplace-upstream-response';
   const service = new AccountServiceDouble();
@@ -893,9 +955,42 @@ test('Fireplace Stop restores permanent, schedule, and timed prior operating mod
       assert.deepEqual(device.store.fireplace_session, device.fireplaceSession);
       assert.equal(device.getCapabilityValue('vasco_fireplace'), false);
       assert.equal(device.getCapabilityValue('measure_fireplace_remaining'), null);
-      assert.equal(device.clock.timers.size, 0);
+      assert.equal(device.clock.timers.size, 1);
     });
   }
+});
+
+test('Fireplace Stop suppression expires via its Homey timer without polling', async () => {
+  const configuration = structuredClone(fixture);
+  configuration.deviceProperties[0].fireplaceModeStatus = 1;
+  const service = new AccountServiceDouble(configuration);
+  const { clock, device } = createHarness({ service });
+  const session = {
+    version: 1,
+    priorMode: 'high',
+    priorDuration: { type: 'schedule' },
+    selectedMinutes: 5,
+    startedAt: NOW_MS,
+    endsAt: NOW_MS + (5 * 60_000),
+  };
+  device.store.device_contract_version = 2;
+  device.store.fireplace_session = session;
+  await device.onInit();
+
+  await device.capabilityListeners.get('button.stop_fireplace')();
+
+  assert.equal(clock.timers.size, 1);
+  assert.equal([...clock.timers.values()][0].at, session.endsAt);
+  clock.advance(5 * 60_000);
+  await settle();
+
+  assert.equal(device.fireplaceSession, null);
+  assert.equal(Object.hasOwn(device.store, 'fireplace_session'), false);
+  assert.equal(clock.timers.size, 0);
+  assert.equal(service.reads.length, 2);
+  assert.deepEqual(service.reads.at(-1), { force: true });
+  assert.equal(device.getCapabilityValue('vasco_fireplace'), true);
+  assert.equal(device.getCapabilityValue('measure_fireplace_remaining'), null);
 });
 
 test('Fireplace Stop suppresses stale active status until the deadline then resumes raw status', async () => {
@@ -1001,6 +1096,47 @@ test('failed Fireplace Stop retains the managed session and countdown with a fix
   assert.equal(device.getCapabilityValue('measure_fireplace_remaining'), 5);
   assert.equal(device.clock.timers.size, 1);
   assert.equal(device.logged.flat().join(' ').includes(secret), false);
+});
+
+test('failed Fireplace Stop persistence leaves the active session and countdown coherent', async () => {
+  const configuration = structuredClone(fixture);
+  configuration.deviceProperties[0].fireplaceModeStatus = 1;
+  const { device } = createHarness({
+    service: new AccountServiceDouble(configuration),
+  });
+  const session = {
+    version: 1,
+    priorMode: 'auto',
+    priorDuration: { type: 'permanent' },
+    selectedMinutes: 5,
+    startedAt: NOW_MS,
+    endsAt: NOW_MS + (5 * 60_000),
+  };
+  device.store.device_contract_version = 2;
+  device.store.fireplace_session = session;
+  await device.onInit();
+  const setStoreValue = device.setStoreValue.bind(device);
+  device.setStoreValue = async (key, value) => {
+    if (key === 'fireplace_session' && Object.hasOwn(value, 'suppressUntil')) {
+      throw new Error('private synthetic Stop store failure');
+    }
+    return setStoreValue(key, value);
+  };
+
+  await assert.rejects(
+    () => device.capabilityListeners.get('button.stop_fireplace')(),
+    { message: 'Homey could not save the stopped Fireplace session.' },
+  );
+
+  assert.deepEqual(device.fireplaceSession, session);
+  assert.deepEqual(device.store.fireplace_session, session);
+  assert.equal(device.getCapabilityValue('vasco_fireplace'), true);
+  assert.equal(device.getCapabilityValue('measure_fireplace_remaining'), 5);
+  assert.equal(device.clock.timers.size, 1);
+  assert.equal(
+    device.logged.flat().join(' ').includes('private synthetic Stop store failure'),
+    false,
+  );
 });
 
 test('external Fireplace Stop returns a fixed explanation without sending any command', async () => {
