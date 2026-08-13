@@ -9,6 +9,7 @@ state keys for confirmation checks.
 ## Commit
 
 - `e42af11 feat: build verified Vasco mode commands`
+- `d6449e7 fix: harden Vasco mode validation`
 
 ## RED/GREEN evidence
 
@@ -48,3 +49,18 @@ state keys for confirmation checks.
 No blocking concerns. A future integration test should confirm the actual
 cloud response after a fireplace-enable request. Fireplace disable remains
 intentionally unimplemented until its protocol payload is verified.
+
+## Fix round 1/5 — RED/GREEN evidence
+
+- RED: the inherited-name test failed because `toString` was accepted without
+  throwing. GREEN: after own-property validation, the focused suite passed
+  7/7 tests.
+- RED: the immutable-mapping test found an inherited object prototype where a
+  null prototype was required. GREEN: the frozen null-prototype mapping passed
+  the focused suite at 8/8 tests and rejected an attempted controller level-5
+  extension.
+- RED: a timed request for 0 minutes incorrectly returned confirmed. GREEN:
+  shared 1–1440 minute validation made 0, fractional, and 1441-minute
+  requests return false; the focused suite passed 9/9 tests.
+- Final verification for this fix round: `npm test` passed 22 tests with 0
+  failures, and `git diff --check` passed.
