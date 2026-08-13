@@ -200,3 +200,24 @@ test('Fireplace picker precedes its enable and stop controls', () => {
   assert.equal(typeof stop.desc.en, 'string');
   assert.equal(typeof stop.desc.pl, 'string');
 });
+
+test('Fireplace Flow action preserves explicit whole-minute durations and bilingual labels', () => {
+  const action = readJson('.homeycompose', 'flow', 'actions', 'enable_fireplace_for_minutes.json');
+  const minutes = action.args.find(argument => argument.name === 'minutes');
+
+  assert.deepEqual(action.title, {
+    en: 'Enable Fireplace mode',
+    pl: 'Włącz tryb kominka',
+  });
+  assert.deepEqual(action.titleFormatted, {
+    en: 'Enable Fireplace mode for [[minutes]] minutes',
+    pl: 'Włącz tryb kominka na [[minutes]] minut',
+  });
+  assert.deepEqual(minutes, {
+    name: 'minutes',
+    type: 'number',
+    title: { en: 'Minutes', pl: 'Minuty' },
+    min: 1,
+    max: 1440,
+  });
+});

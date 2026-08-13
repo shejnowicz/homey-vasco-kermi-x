@@ -1,1 +1,1 @@
-Steruj zgodnymi centralami wentylacyjnymi Vasco i Kermi serii X za pomocą Homey przez usługę chmurową producenta. Aplikację opracowano i przetestowano z Vasco X500; inne modele serii X wymagają weryfikacji społeczności oraz dostępu do internetu.
+Steruj centralami Vasco i Kermi serii X z Homey przez chmurę producenta. Wybierz czas trybu kominka w selektorze urządzenia; Homey pokazuje dokładny pozostały czas tylko dla własnych sesji, a Zatrzymaj przywraca poprzedni tryb wentylacji dla sesji Homey.

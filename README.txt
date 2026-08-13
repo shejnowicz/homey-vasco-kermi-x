@@ -1,1 +1,1 @@
-Control compatible Vasco and Kermi X Series ventilation units with Homey through the vendor cloud service. Developed and tested on a Vasco X500; other X Series models require community verification and internet access.
+Control compatible Vasco and Kermi X Series ventilation units with Homey through the vendor cloud service. Choose Fireplace duration from the device picker; Homey shows exact remaining time for sessions it starts, and Stop restores the prior ventilation mode for sessions started from Homey.
