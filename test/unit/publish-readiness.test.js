@@ -58,3 +58,19 @@ test('public documentation describes D/T/X scope and current Fireplace control',
   assert.match(compatibility, /D, T (?:and|or) X/i);
   assert.match(contributing, /test|homey-validate|dependency-audit/i);
 });
+
+test('CI exposes the three protected checks without publishing', () => {
+  const workflow = read('.github/workflows/validate.yml');
+
+  assert.match(workflow, /^\s{2}workflow_dispatch:\s*$/m);
+  assert.match(workflow, /^\s{2}test:\s*$/m);
+  assert.match(workflow, /^\s{2}homey-validate:\s*$/m);
+  assert.match(workflow, /^\s{2}dependency-audit:\s*$/m);
+  assert.match(workflow, /node-version:\s*22/);
+  assert.match(workflow, /npm install --global homey@4\.4\.1/);
+  assert.match(workflow, /git diff --exit-code -- app\.json/);
+  assert.match(workflow, /homey app validate --level publish/);
+  assert.match(workflow, /npm audit --omit=dev --audit-level=high/);
+  assert.match(workflow, /cancel-in-progress:\s*true/);
+  assert.doesNotMatch(workflow, /homey app publish|HOMEY_TOKEN|ATHOM_TOKEN/i);
+});

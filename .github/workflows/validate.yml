@@ -4,12 +4,32 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  validate:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install project dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+
+  homey-validate:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -23,9 +43,24 @@ jobs:
         run: npm ci
       - name: Install Homey CLI
         run: npm install --global homey@4.4.1
-      - name: Run tests
-        run: npm test
       - name: Build app
         run: homey app build
+      - name: Verify generated manifest
+        run: git diff --exit-code -- app.json
       - name: Validate publish package
         run: homey app validate --level publish
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install project dependencies
+        run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
