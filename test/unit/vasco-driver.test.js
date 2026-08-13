@@ -141,16 +141,24 @@ test('pairing returns every compatible unit with opaque identity and protected c
     assert.doesNotMatch(JSON.stringify(device.data), /synthetic-gateway|synthetic-device/);
     assert.doesNotMatch(JSON.stringify(device.store), /synthetic-gateway|synthetic-device|pairing-password|pairing@example/);
   }
+  assert.equal(registry.released, false);
+  await session.emit('disconnect');
   assert.equal(registry.released, true);
   await assert.rejects(session.emit('list_devices'), /sign in/i);
 });
 
 test('pairing lists an X500 whose schedule reports no requested level', async () => {
   const x500 = {
-    ...structuredClone(fixture.deviceProperties[0]),
+    productCategory: 'ventilation',
+    productTypeString: 'X500',
+    swVersion: 26,
+    macAddress: 'synthetic-real-shape-mac',
+    serial: 'synthetic-real-shape-serial',
     level: 2,
     requestedLevel: null,
     controlMode: 'schedule',
+    actualFanSpeedInlet: 50,
+    actualFanSpeedExhaust: 50,
   };
   const { session } = createHarness({ configuration: { deviceProperties: [x500] } });
 
@@ -158,8 +166,28 @@ test('pairing lists an X500 whose schedule reports no requested level', async ()
   const devices = await session.emit('list_devices');
 
   assert.equal(devices.length, 1);
-  assert.equal(devices[0].data.id, KITCHEN_ID);
-  assert.equal(devices[0].store.product, 'Vasco X500');
+  assert.equal(
+    devices[0].data.id,
+    createHash('sha256')
+      .update('synthetic-real-shape-mac\u0000synthetic-real-shape-serial')
+      .digest('hex'),
+  );
+  assert.equal(devices[0].store.product, 'X500');
+});
+
+test('mobile pairing may request the device list repeatedly until session disconnect', async () => {
+  const { registry, session } = createHarness({
+    configuration: { deviceProperties: fixture.deviceProperties.slice(0, 1) },
+  });
+
+  await session.emit('login', { email: EMAIL, password: PASSWORD });
+  assert.equal((await session.emit('list_devices')).length, 1);
+  assert.equal((await session.emit('list_devices')).length, 1);
+  assert.equal(registry.released, false);
+
+  await session.emit('disconnect');
+  assert.equal(registry.released, true);
+  await assert.rejects(session.emit('list_devices'), /sign in/i);
 });
 
 test('pairing omits identities that Homey already has paired', async () => {
@@ -241,6 +269,7 @@ test('malformed ventilation candidates produce a compatibility error without pri
       return true;
     },
   );
+  await session.emit('disconnect');
   assert.equal(registry.released, true);
 });
 
@@ -291,6 +320,7 @@ test('a second login is rejected while the first is pending and the acquired ref
   });
   assert.equal(await firstLogin, true);
   await session.emit('list_devices');
+  await session.emit('disconnect');
 
   assert.equal(registry.active.size, 0);
   assert.equal(registry.containsCredentials(), false);

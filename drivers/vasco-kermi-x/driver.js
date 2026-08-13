@@ -42,6 +42,8 @@ module.exports = class VascoKermiXDriver extends Homey.Driver {
       }
     };
 
+    session.setHandler('disconnect', clearPairState);
+
     session.setHandler('login', async (credentials) => {
       if (loginInProgress) {
         throw new Error(LOGIN_ERROR);
@@ -115,8 +117,6 @@ module.exports = class VascoKermiXDriver extends Homey.Driver {
       } catch (error) {
         if (error instanceof CompatibilityError) throw error;
         throw new Error(LIST_ERROR);
-      } finally {
-        clearPairState();
       }
     });
   }
@@ -159,7 +159,8 @@ function safeDisplayName(candidate, credentials) {
 }
 
 function safeProduct(raw, credentials) {
-  const product = typeof raw?.product === 'string' ? raw.product.trim() : '';
+  const rawProduct = raw?.productTypeString ?? raw?.product;
+  const product = typeof rawProduct === 'string' ? rawProduct.trim() : '';
   if (product.length === 0 || containsPrivateValue(product, raw, credentials)) {
     return DEFAULT_PRODUCT;
   }
@@ -168,7 +169,13 @@ function safeProduct(raw, credentials) {
 
 function containsPrivateValue(value, raw, credentials) {
   const lowerValue = value.toLowerCase();
-  const caseInsensitiveValues = [raw?.bridgeId, raw?.deviceId, credentials?.email];
+  const caseInsensitiveValues = [
+    raw?.macAddress,
+    raw?.serial,
+    raw?.bridgeId,
+    raw?.deviceId,
+    credentials?.email,
+  ];
   if (caseInsensitiveValues.some(privateValue => (
     typeof privateValue === 'string'
       && privateValue.length > 0

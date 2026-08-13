@@ -10,6 +10,32 @@ const {
 } = require('../../lib/vasco-device-mapper');
 const { VascoProtocolError } = require('../../lib/vasco-errors');
 
+function realX500Shape(overrides = {}) {
+  return {
+    productCategory: 'ventilation',
+    productTypeString: 'X500',
+    swVersion: 26,
+    macAddress: 'synthetic-mac-address',
+    serial: 'synthetic-x500-serial',
+    level: 2,
+    requestedLevel: null,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+    actualFanSpeedInlet: 50,
+    actualFanSpeedExhaust: 50,
+    indoorTemperature: 25.86,
+    outdoorTemperature: 23.4,
+    bypassPosition: 100,
+    filterDirty: 0,
+    defrost: 0,
+    faultStatus: 0,
+    rFCommunicationStatus: 0,
+    fireplaceModeStatus: 0,
+    fireplaceModeTime: 5,
+    ...overrides,
+  };
+}
+
 test('discovers compatible ventilation units in account order with stable opaque identities', () => {
   const discovered = discoverVentilationDevices(fixture);
 
@@ -66,16 +92,36 @@ test('assertSupportedDevice accepts a compatible ventilation unit', () => {
 });
 
 test('accepts X500 schedule state with null requestedLevel and uses the effective level', () => {
-  const scheduled = {
-    ...fixture.deviceProperties[0],
-    level: 2,
-    requestedLevel: null,
-    controlMode: 'schedule',
-  };
+  const scheduled = realX500Shape();
 
   assert.doesNotThrow(() => assertSupportedDevice(scheduled));
-  assert.equal(discoverVentilationDevices({ deviceProperties: [scheduled] }).length, 1);
-  assert.equal(toDeviceState(scheduled).requestedMode, 2);
+  const [discovered] = discoverVentilationDevices({ deviceProperties: [scheduled] });
+  assert.equal(
+    discovered.identity,
+    createHash('sha256')
+      .update('synthetic-mac-address\u0000synthetic-x500-serial')
+      .digest('hex'),
+  );
+  assert.equal(discovered.product, 'X500');
+  assert.deepEqual(toDeviceState(scheduled), {
+    product: 'X500',
+    softwareVersion: 26,
+    mode: 2,
+    requestedMode: 2,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+    fanSpeedInlet: 50,
+    fanSpeedExhaust: 50,
+    indoorTemperature: 25.86,
+    outdoorTemperature: 23.4,
+    bypassPosition: 100,
+    filterDirty: 0,
+    defrost: 0,
+    faultStatus: 0,
+    rfCommunicationStatus: 0,
+    fireplaceModeStatus: 0,
+    fireplaceModeTime: 5,
+  });
 });
 
 test('rejects empty or wrongly typed required identity and state fields', () => {
