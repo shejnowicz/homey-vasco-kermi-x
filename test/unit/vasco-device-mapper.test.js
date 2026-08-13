@@ -65,6 +65,19 @@ test('assertSupportedDevice accepts a compatible ventilation unit', () => {
   assert.doesNotThrow(() => assertSupportedDevice(fixture.deviceProperties[0]));
 });
 
+test('accepts X500 schedule state with null requestedLevel and uses the effective level', () => {
+  const scheduled = {
+    ...fixture.deviceProperties[0],
+    level: 2,
+    requestedLevel: null,
+    controlMode: 'schedule',
+  };
+
+  assert.doesNotThrow(() => assertSupportedDevice(scheduled));
+  assert.equal(discoverVentilationDevices({ deviceProperties: [scheduled] }).length, 1);
+  assert.equal(toDeviceState(scheduled).requestedMode, 2);
+});
+
 test('rejects empty or wrongly typed required identity and state fields', () => {
   const supported = fixture.deviceProperties[0];
   const invalidFields = [
@@ -74,6 +87,9 @@ test('rejects empty or wrongly typed required identity and state fields', () => 
     ['controlMode', 1],
     ['level', Number.NaN],
     ['requestedLevel', '3'],
+    ['requestedLevel', undefined],
+    ['requestedLevel', Number.NaN],
+    ['requestedLevel', Number.POSITIVE_INFINITY],
     ['fanSpeedInlet', Number.POSITIVE_INFINITY],
     ['fanSpeedExhaust', '39'],
   ];

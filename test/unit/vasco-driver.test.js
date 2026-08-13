@@ -145,6 +145,23 @@ test('pairing returns every compatible unit with opaque identity and protected c
   await assert.rejects(session.emit('list_devices'), /sign in/i);
 });
 
+test('pairing lists an X500 whose schedule reports no requested level', async () => {
+  const x500 = {
+    ...structuredClone(fixture.deviceProperties[0]),
+    level: 2,
+    requestedLevel: null,
+    controlMode: 'schedule',
+  };
+  const { session } = createHarness({ configuration: { deviceProperties: [x500] } });
+
+  await session.emit('login', { email: EMAIL, password: PASSWORD });
+  const devices = await session.emit('list_devices');
+
+  assert.equal(devices.length, 1);
+  assert.equal(devices[0].data.id, KITCHEN_ID);
+  assert.equal(devices[0].store.product, 'Vasco X500');
+});
+
 test('pairing omits identities that Homey already has paired', async () => {
   const supportedConfiguration = {
     deviceProperties: fixture.deviceProperties.slice(0, 3),
