@@ -448,7 +448,7 @@ test('initialization acquires the shared account, registers controls, syncs befo
   assert.equal(service.reads.length, 1);
   assert.equal(service.pollingStarts.length, 1);
   assert.equal(service.pollingStarts[0].intervalSeconds, 60);
-  assert.equal(device.capabilities.get('vasco_mode'), 'high');
+  assert.equal(device.capabilities.get('vasco_mode'), 'medium');
   assert.equal(device.capabilities.get('measure_temperature.indoor'), 21.4);
   assert.equal(device.capabilities.get('measure_temperature.outdoor'), 17.5);
   assert.equal(device.capabilityWrites.some(([id]) => id === 'measure_temperature.outdoor'), false);
@@ -666,6 +666,7 @@ test('external Fireplace session activation reports unknown remaining time', asy
 test('applyState writes only changed non-null capabilities and emits post-initialization transitions', async () => {
   const { device, transitions } = createHarness();
   await device.applyState({
+    mode: 2,
     requestedMode: 2,
     indoorTemperature: 21,
     outdoorTemperature: null,
@@ -683,6 +684,7 @@ test('applyState writes only changed non-null capabilities and emits post-initia
   device.capabilityWrites.length = 0;
 
   await device.applyState({
+    mode: 3,
     requestedMode: 3,
     indoorTemperature: 21,
     outdoorTemperature: null,
@@ -778,6 +780,23 @@ test('mode number synchronization writes each supported requested operating mode
     assert.equal(device.getCapabilityValue('vasco_mode'), mode);
     assert.equal(device.getCapabilityValue('measure_vasco_mode'), level);
   }
+});
+
+test('effective level wins over shifted requested level while Fireplace mode is active', async () => {
+  const { device } = createHarness();
+
+  await device.applyState({
+    mode: 1,
+    requestedMode: 2,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+    fireplaceModeStatus: 1,
+    fanSpeedInlet: 26,
+    fanSpeedExhaust: 26,
+  }, { initial: true });
+
+  assert.equal(device.getCapabilityValue('vasco_mode'), 'low');
+  assert.equal(device.getCapabilityValue('measure_vasco_mode'), 1);
 });
 
 test('RF status zero is healthy and a non-zero status raises the alarm', async () => {
@@ -1418,6 +1437,7 @@ test('Fireplace Stop reports that an already-ended Homey session is no longer ac
 test('unconfirmed commands restore the observed state and expose only a fixed error', async () => {
   const secret = 'private-upstream-response';
   const observed = structuredClone(fixture);
+  observed.deviceProperties[0].level = 1;
   observed.deviceProperties[0].requestedLevel = 1;
   const service = new AccountServiceDouble(observed);
   service.executeDeviceCommand = async () => {
@@ -1483,6 +1503,7 @@ test('shared polling marks a device unavailable only after three transport failu
 
 test('the Maintenance Action forces a fresh read, updates state, and restores availability', async () => {
   const updated = structuredClone(fixture);
+  updated.deviceProperties[0].level = 6;
   updated.deviceProperties[0].requestedLevel = 6;
   const service = new AccountServiceDouble(fixture);
   const { device } = createHarness({ service });
@@ -1621,6 +1642,7 @@ test('devices sharing one account share one polling loop and both receive its st
   assert.equal(service.pollingStarts.length, 1);
 
   const updated = structuredClone(fixture);
+  updated.deviceProperties[0].level = 7;
   updated.deviceProperties[0].requestedLevel = 7;
   await service.pollingStarts[0].onState(updated);
 

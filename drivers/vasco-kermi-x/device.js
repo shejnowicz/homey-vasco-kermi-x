@@ -50,9 +50,9 @@ const MODE_BY_LEVEL = new Map(
 const POLLING_COORDINATOR = Symbol('vascoPollingCoordinator');
 
 const CAPABILITIES = Object.freeze([
-  ['vasco_mode', state => MODE_BY_LEVEL.get(state.requestedMode) ?? null],
+  ['vasco_mode', state => MODE_BY_LEVEL.get(state.mode) ?? null],
   ['measure_vasco_mode', state => (
-    MODE_BY_LEVEL.has(state.requestedMode) ? state.requestedMode : null
+    MODE_BY_LEVEL.has(state.mode) ? state.mode : null
   )],
   ['measure_temperature.indoor', state => state.indoorTemperature],
   ['measure_temperature.outdoor', state => state.outdoorTemperature],
