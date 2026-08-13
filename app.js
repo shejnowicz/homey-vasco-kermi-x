@@ -47,7 +47,7 @@ module.exports = class VascoKermiXApp extends Homey.App {
       runMode(device, mode, { type: 'minutes', minutes: flowMinutes(minutes) })
     ));
     action('enable_fireplace_for_minutes', async ({ device, minutes }) => {
-      await requiredDevice(device).setFireplace(true, flowMinutes(minutes));
+      await requiredDevice(device).setFireplace(flowMinutes(minutes));
       return true;
     });
     action('refresh_state', async ({ device }) => {

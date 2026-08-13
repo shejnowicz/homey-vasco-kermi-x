@@ -193,8 +193,8 @@ function createDevice() {
       calls.push(['setOperatingMode', mode, duration]);
       return true;
     },
-    async setFireplace(enabled, minutes) {
-      calls.push(['setFireplace', enabled, minutes]);
+    async setFireplace(...args) {
+      calls.push(['setFireplace', ...args]);
       return true;
     },
     async refreshState(options) {
@@ -225,9 +225,9 @@ test('app registers Flow listeners once, delegates safely, and delivers device t
     ['setOperatingMode', 'auto', { type: 'schedule' }],
     ['setOperatingMode', 'guests', { type: 'permanent' }],
     ['setOperatingMode', 'high', { type: 'minutes', minutes: 30 }],
-    ['setFireplace', true, 1],
-    ['setFireplace', true, 90],
-    ['setFireplace', true, 1_440],
+    ['setFireplace', 1],
+    ['setFireplace', 90],
+    ['setFireplace', 1_440],
     ['refreshState', { force: true }],
   ]);
 
@@ -262,6 +262,19 @@ test('app registers Flow listeners once, delegates safely, and delivers device t
   );
 });
 
+test('Fireplace Flow action passes the selected duration as the only device argument', async () => {
+  const { app, actions } = createAppHarness();
+  await app.onInit();
+  const device = createDevice();
+
+  await actions.get('enable_fireplace_for_minutes').listeners[0]({
+    device,
+    minutes: 45,
+  });
+
+  assert.deepEqual(device.calls, [['setFireplace', 45]]);
+});
+
 test('Fireplace Flow listener accepts whole boundary minutes and rejects fractions', async () => {
   const { app, actions } = createAppHarness();
   await app.onInit();
@@ -276,7 +289,7 @@ test('Fireplace Flow listener accepts whole boundary minutes and rejects fractio
   );
 
   assert.deepEqual(device.calls, [
-    ['setFireplace', true, 1],
-    ['setFireplace', true, 1_440],
+    ['setFireplace', 1],
+    ['setFireplace', 1_440],
   ]);
 });
