@@ -19,12 +19,15 @@ const requiredCapabilities = [
   'vasco_control_state',
   'vasco_override_end',
   'vasco_fireplace',
+  'vasco_fireplace_duration',
+  'measure_fireplace_remaining',
   'alarm_filter',
   'alarm_generic',
   'alarm_defrost',
   'alarm_rf',
   'button.test_connection',
   'button.enable_fireplace',
+  'button.stop_fireplace',
   'measure_vasco_mode',
 ];
 
@@ -34,7 +37,6 @@ const requiredSettings = [
   'poll_interval',
   'default_duration_type',
   'default_duration_minutes',
-  'default_fireplace_minutes',
 ];
 
 test('Homey Compose manifest exposes the Vasco device contract', () => {
@@ -63,10 +65,8 @@ test('Homey Compose manifest exposes the Vasco device contract', () => {
   assert.match(duration.hint.pl, /następne zdarzenie harmonogramu.*wznowi.*sterowanie/i);
   assert.match(duration.hint.en, /Flow.*permanent.*until next schedule.*timed/i);
   assert.match(duration.hint.pl, /Flow.*na stałe.*do następnej zmiany harmonogramu.*czas/i);
-  for (const id of ['default_duration_minutes', 'default_fireplace_minutes']) {
-    assert.equal(settingsById[id].min, 1);
-    assert.equal(settingsById[id].max, 1440);
-  }
+  assert.equal(settingsById.default_duration_minutes.min, 1);
+  assert.equal(settingsById.default_duration_minutes.max, 1440);
 
   for (const id of requiredSettings) {
     assert.equal(typeof settingsById[id].label.en, 'string');
@@ -102,6 +102,8 @@ test('custom capabilities have complete bilingual UI metadata', () => {
 
   const mode = readJson('.homeycompose', 'capabilities', 'vasco_mode.json');
   const fireplace = readJson('.homeycompose', 'capabilities', 'vasco_fireplace.json');
+  const duration = readJson('.homeycompose', 'capabilities', 'vasco_fireplace_duration.json');
+  const remaining = readJson('.homeycompose', 'capabilities', 'measure_fireplace_remaining.json');
   const modeNumber = readJson('.homeycompose', 'capabilities', 'measure_vasco_mode.json');
   const diagnostics = [
     'vasco_supply_fan',
@@ -117,6 +119,20 @@ test('custom capabilities have complete bilingual UI metadata', () => {
   assert.equal(mode.setable, true);
   assert.equal(fireplace.setable, false);
   assert.equal(fireplace.uiComponent, 'sensor');
+  assert.equal(duration.type, 'enum');
+  assert.equal(duration.getable, true);
+  assert.equal(duration.setable, true);
+  assert.equal(duration.uiComponent, 'picker');
+  const minutes = Array.from({ length: 17 }, (_, index) => (index + 1) * 5);
+  assert.deepEqual(duration.values.map(value => Number(value.id)), minutes);
+  assert.equal(remaining.type, 'number');
+  assert.equal(remaining.getable, true);
+  assert.equal(remaining.setable, false);
+  assert.equal(remaining.min, 0);
+  assert.equal(remaining.max, 85);
+  assert.equal(remaining.step, 1);
+  assert.equal(remaining.decimals, 0);
+  assert.deepEqual(remaining.units, { en: 'minutes', pl: 'minuty' });
   assert.equal(modeNumber.type, 'number');
   assert.equal(modeNumber.getable, true);
   assert.equal(modeNumber.setable, false);
@@ -170,4 +186,17 @@ test('Fireplace enable derives from the system button as an explicit control', (
   assert.equal(typeof action.title.pl, 'string');
   assert.equal(typeof action.desc.en, 'string');
   assert.equal(typeof action.desc.pl, 'string');
+});
+
+test('Fireplace picker precedes its enable and stop controls', () => {
+  const driver = readJson('drivers', 'vasco-kermi-x', 'driver.compose.json');
+  const stop = driver.capabilitiesOptions['button.stop_fireplace'];
+  const picker = driver.capabilities.indexOf('vasco_fireplace_duration');
+
+  assert.ok(picker < driver.capabilities.indexOf('button.enable_fireplace'));
+  assert.ok(picker < driver.capabilities.indexOf('button.stop_fireplace'));
+  assert.equal(typeof stop.title.en, 'string');
+  assert.equal(typeof stop.title.pl, 'string');
+  assert.equal(typeof stop.desc.en, 'string');
+  assert.equal(typeof stop.desc.pl, 'string');
 });

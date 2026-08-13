@@ -48,15 +48,5 @@
     "max": 1440,
     "step": 1,
     "units": { "en": "minutes", "pl": "minuty" }
-  },
-  {
-    "id": "default_fireplace_minutes",
-    "type": "number",
-    "label": { "en": "Default fireplace duration", "pl": "Domyślny czas trybu kominka" },
-    "value": 5,
-    "min": 1,
-    "max": 1440,
-    "step": 1,
-    "units": { "en": "minutes", "pl": "minuty" }
   }
 ]

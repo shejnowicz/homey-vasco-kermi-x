@@ -18,10 +18,13 @@ const { MODES } = require('../../lib/vasco-modes');
 const DEFAULT_POLL_INTERVAL = 60;
 const DEFAULT_MODE_MINUTES = 60;
 const DEFAULT_FIREPLACE_MINUTES = 5;
-const DEVICE_CONTRACT_VERSION = 1;
+const DEVICE_CONTRACT_VERSION = 2;
 const DEVICE_CONTRACT_CAPABILITIES = [
   'button.enable_fireplace',
   'measure_vasco_mode',
+  'vasco_fireplace_duration',
+  'measure_fireplace_remaining',
+  'button.stop_fireplace',
 ];
 const SETTINGS_UNCHANGED_MESSAGE =
   'Could not validate Vasco credentials. Settings were not changed.';
@@ -84,7 +87,9 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
         this.setOperatingMode(mode, defaultModeDuration(this.getSettings()))
       ));
       this.registerCapabilityListener('button.enable_fireplace', () => (
-        this.setFireplace(true, defaultFireplaceMinutes(this.getSettings()))
+        this.setFireplace(true, defaultFireplaceMinutes(
+          this.getCapabilityValue('vasco_fireplace_duration'),
+        ))
       ));
       this.registerCapabilityListener('button.test_connection', () => this.testConnection());
 
@@ -109,9 +114,14 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
 
     const version = this.getStoreValue('device_contract_version') ?? 0;
     if (version >= DEVICE_CONTRACT_VERSION) return;
-
-    if (this.getSettings().default_duration_type === 'permanent') {
+    if (version < 1 && this.getSettings().default_duration_type === 'permanent') {
       await this.setSettings({ default_duration_type: 'schedule' });
+    }
+    if (version < 2) {
+      await this.setCapabilityValue(
+        'vasco_fireplace_duration',
+        fireplaceDurationValue(this.getSettings().default_fireplace_minutes),
+      );
     }
     await this.setStoreValue('device_contract_version', DEVICE_CONTRACT_VERSION);
   }
@@ -658,11 +668,22 @@ function defaultModeDuration(settings) {
   return { type };
 }
 
-function defaultFireplaceMinutes(settings) {
-  return validatedMinutes(
-    settings.default_fireplace_minutes ?? DEFAULT_FIREPLACE_MINUTES,
-    'Default Fireplace duration',
-  );
+function defaultFireplaceMinutes(value) {
+  return fireplaceDurationMinutes(value);
+}
+
+function fireplaceDurationValue(legacyValue) {
+  const minutes = Number(legacyValue);
+  if (!Number.isFinite(minutes)) return String(DEFAULT_FIREPLACE_MINUTES);
+  return String(Math.round(Math.min(85, Math.max(5, minutes)) / 5) * 5);
+}
+
+function fireplaceDurationMinutes(value) {
+  const minutes = Number(value ?? DEFAULT_FIREPLACE_MINUTES);
+  if (!Number.isInteger(minutes) || minutes < 5 || minutes > 85 || minutes % 5 !== 0) {
+    throw new RangeError('Fireplace duration must be a supported five-minute value from 5 to 85');
+  }
+  return minutes;
 }
 
 function validateChangedSettings(settings, changedKeys) {
@@ -684,8 +705,8 @@ function validateChangedSettings(settings, changedKeys) {
       && changedKeys.includes('default_duration_type'))) {
     validatedMinutes(settings.default_duration_minutes, 'Default mode duration');
   }
-  if (changedKeys.includes('default_fireplace_minutes')) {
-    validatedMinutes(settings.default_fireplace_minutes, 'Default Fireplace duration');
+  if (changedKeys.includes('vasco_fireplace_duration')) {
+    fireplaceDurationMinutes(settings.vasco_fireplace_duration);
   }
   if (changedKeys.includes('vasco_email') || changedKeys.includes('vasco_password')) {
     if (typeof settings.vasco_email !== 'string' || settings.vasco_email.trim().length === 0
