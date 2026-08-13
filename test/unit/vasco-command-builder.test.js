@@ -146,6 +146,11 @@ test('buildFireplaceCommand encodes enable and stop without mutating raw state',
     const command = buildFireplaceCommand(rawDevice, { minutes });
     assert.equal(command.fireplaceModeTime, minutes);
     assert.equal(command.fireplaceModeStatus, rawDevice.fireplaceModeStatus);
+    assert.equal(Object.hasOwn(command, 'nextParameter'), false);
+    assert.equal(Object.hasOwn(command, 'nextValue'), false);
+    assert.equal(JSON.stringify(command).includes('fireplaceModeTime'), true);
+    assert.equal(JSON.stringify(command).includes('nextParameter'), false);
+    assert.equal(JSON.stringify(command).includes('nextValue'), false);
   }
   assert.deepEqual(rawDevice, original);
 

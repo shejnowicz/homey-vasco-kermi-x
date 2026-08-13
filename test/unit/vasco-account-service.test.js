@@ -530,6 +530,8 @@ test('Fireplace command writes fireplaceModeTime through the Vasco WebSocket wit
   assert.equal(restWrites[0].token, OLD_TOKEN);
   assert.equal(restWrites[0].command.fireplaceModeStatus, fixture.deviceProperties[0].fireplaceModeStatus);
   assert.equal(restWrites[0].command.fireplaceModeTime, 45);
+  assert.equal(Object.hasOwn(restWrites[0].command, 'nextParameter'), false);
+  assert.equal(Object.hasOwn(restWrites[0].command, 'nextValue'), false);
   assert.equal(physicalWrites.length, 1);
   assert.equal(physicalWrites[0].parameterName, 'fireplaceModeTime');
   assert.equal(physicalWrites[0].value, 45);
