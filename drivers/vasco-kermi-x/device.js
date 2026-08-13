@@ -22,19 +22,21 @@ const {
   stoppedSession,
 } = require('../../lib/vasco-fireplace-session');
 const { MODES } = require('../../lib/vasco-modes');
+const { controlDurationValue } = require('../../lib/vasco-control-duration');
 
 const DEFAULT_POLL_INTERVAL = 60;
 const DEFAULT_MODE_MINUTES = 60;
 const DEFAULT_FIREPLACE_MINUTES = 5;
 const FIREPLACE_SESSION_STORE_KEY = 'fireplace_session';
 const MINUTE_MS = 60_000;
-const DEVICE_CONTRACT_VERSION = 2;
+const DEVICE_CONTRACT_VERSION = 3;
 const DEVICE_CONTRACT_CAPABILITIES = [
   'button.enable_fireplace',
   'measure_vasco_mode',
   'vasco_fireplace_duration',
   'measure_fireplace_remaining',
   'button.stop_fireplace',
+  'vasco_control_duration',
 ];
 const SETTINGS_UNCHANGED_MESSAGE =
   'Could not validate Vasco credentials. Settings were not changed.';
@@ -61,6 +63,9 @@ const CAPABILITIES = Object.freeze([
     state.controlMode === 'schedule' || state.controlMode === 'manual'
       ? state.controlMode
       : null
+  )],
+  ['vasco_control_duration', (state, device) => (
+    controlDurationValue(state, device.getNow())
   )],
   ['vasco_override_end', state => overrideEndValue(state.manualSettingActiveTill)],
   ['vasco_fireplace', state => flagValue(state.fireplaceModeStatus)],
@@ -201,7 +206,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       if (this.deleted) return false;
       const value = capability === 'vasco_fireplace' && fireplace
         ? fireplace.active
-        : mapValue(state);
+        : mapValue(state, this);
       if (value === null || value === undefined) continue;
 
       const previous = this.getCapabilityValue(capability);

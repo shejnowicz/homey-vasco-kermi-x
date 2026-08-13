@@ -33,6 +33,7 @@
     "vasco_exhaust_fan",
     "vasco_bypass",
     "vasco_control_state",
+    "vasco_control_duration",
     "vasco_override_end",
     "vasco_fireplace",
     "vasco_fireplace_duration",

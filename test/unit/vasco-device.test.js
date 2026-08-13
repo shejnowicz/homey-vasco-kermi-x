@@ -161,12 +161,13 @@ test('device contract migration adds the missing controls and changes the pre-re
     'vasco_fireplace_duration',
     'measure_fireplace_remaining',
     'button.stop_fireplace',
+    'vasco_control_duration',
   ]);
   assert.deepEqual(device.settingsWrites, [
     { default_duration_type: 'schedule' },
   ]);
   assert.deepEqual(device.capabilityWrites, [['vasco_fireplace_duration', '5']]);
-  assert.equal(device.store.device_contract_version, 2);
+  assert.equal(device.store.device_contract_version, 3);
 });
 
 test('Fireplace duration migration upgrades version one with the nearest supported picker value', async () => {
@@ -183,9 +184,10 @@ test('Fireplace duration migration upgrades version one with the nearest support
     'vasco_fireplace_duration',
     'measure_fireplace_remaining',
     'button.stop_fireplace',
+    'vasco_control_duration',
   ]);
   assert.deepEqual(device.capabilityWrites, [['vasco_fireplace_duration', '45']]);
-  assert.equal(device.store.device_contract_version, 2);
+  assert.equal(device.store.device_contract_version, 3);
 });
 
 test('Fireplace duration migration defaults missing legacy duration to five minutes', async () => {
@@ -197,10 +199,10 @@ test('Fireplace duration migration defaults missing legacy duration to five minu
   await device.ensureDeviceContract();
 
   assert.deepEqual(device.capabilityWrites, [['vasco_fireplace_duration', '5']]);
-  assert.equal(device.store.device_contract_version, 2);
+  assert.equal(device.store.device_contract_version, 3);
 });
 
-test('Fireplace duration migration preserves the picker after version two', async () => {
+test('control duration migration upgrades version two and preserves the Fireplace picker', async () => {
   const { device } = createHarness({
     settings: { default_fireplace_minutes: 85 },
   });
@@ -218,8 +220,30 @@ test('Fireplace duration migration preserves the picker after version two', asyn
 
   assert.deepEqual(device.settingsWrites, []);
   assert.deepEqual(device.capabilityWrites, []);
-  assert.deepEqual(device.storeWrites, []);
+  assert.deepEqual(device.capabilityAdds, ['vasco_control_duration']);
+  assert.deepEqual(device.storeWrites, [{ key: 'device_contract_version', value: 3 }]);
   assert.equal(device.getCapabilityValue('vasco_fireplace_duration'), '20');
+});
+
+test('device contract version three preserves existing capabilities and values', async () => {
+  const { device } = createHarness();
+  device.store.device_contract_version = 3;
+  device.capabilities.set('vasco_control_duration', 'permanent');
+  for (const capability of [
+    'button.enable_fireplace',
+    'measure_vasco_mode',
+    'vasco_fireplace_duration',
+    'measure_fireplace_remaining',
+    'button.stop_fireplace',
+    'vasco_control_duration',
+  ]) device.availableCapabilities.add(capability);
+
+  await device.ensureDeviceContract();
+
+  assert.deepEqual(device.capabilityAdds, []);
+  assert.deepEqual(device.capabilityWrites, []);
+  assert.deepEqual(device.storeWrites, []);
+  assert.equal(device.getCapabilityValue('vasco_control_duration'), 'permanent');
 });
 
 test('device contract migration completes before account acquisition and listener registration', async () => {
@@ -267,9 +291,10 @@ test('device contract migration completes before account acquisition and listene
     'add:vasco_fireplace_duration',
     'add:measure_fireplace_remaining',
     'add:button.stop_fireplace',
+    'add:vasco_control_duration',
     'settings',
     'capability:vasco_fireplace_duration:5',
-    'store:device_contract_version:2',
+    'store:device_contract_version:3',
     'acquire',
   ]);
   assert.ok(operations.indexOf('listener:vasco_mode') > operations.indexOf('acquire'));
@@ -688,6 +713,42 @@ test('applyState writes only changed non-null capabilities and emits post-initia
   ]);
 });
 
+test('control duration synchronization maps all states and preserves the last valid value', async () => {
+  const { device } = createHarness();
+  const baseState = {
+    requestedMode: 2,
+    fireplaceModeStatus: 0,
+  };
+
+  await device.applyState({
+    ...baseState,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+  }, { initial: true });
+  assert.equal(device.getCapabilityValue('vasco_control_duration'), 'until_schedule');
+
+  await device.applyState({
+    ...baseState,
+    controlMode: 'manual',
+    manualSettingActiveTill: -1,
+  }, { initial: false });
+  assert.equal(device.getCapabilityValue('vasco_control_duration'), 'permanent');
+
+  await device.applyState({
+    ...baseState,
+    controlMode: 'manual',
+    manualSettingActiveTill: NOW_MS + 1,
+  }, { initial: false });
+  assert.equal(device.getCapabilityValue('vasco_control_duration'), 'timed');
+
+  await device.applyState({
+    ...baseState,
+    controlMode: 'manual',
+    manualSettingActiveTill: NOW_MS,
+  }, { initial: false });
+  assert.equal(device.getCapabilityValue('vasco_control_duration'), 'timed');
+});
+
 test('mode number synchronization writes each supported requested operating mode', async () => {
   const { device } = createHarness();
   const baseState = {
@@ -751,6 +812,7 @@ test('optimistic mode acknowledgement applies both mode values before a later po
   });
   assert.equal(device.capabilities.get('vasco_mode'), 'auto');
   assert.equal(device.capabilities.get('measure_vasco_mode'), 4);
+  assert.equal(device.capabilities.get('vasco_control_duration'), 'timed');
   assert.equal(service.reads.length, 1);
 });
 

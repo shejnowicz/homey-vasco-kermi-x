@@ -17,6 +17,7 @@ const requiredCapabilities = [
   'vasco_exhaust_fan',
   'vasco_bypass',
   'vasco_control_state',
+  'vasco_control_duration',
   'vasco_override_end',
   'vasco_fireplace',
   'vasco_fireplace_duration',
@@ -83,6 +84,7 @@ test('custom capabilities have complete bilingual UI metadata', () => {
     'vasco_exhaust_fan',
     'vasco_bypass',
     'vasco_control_state',
+    'vasco_control_duration',
     'vasco_override_end',
     'vasco_fireplace',
     'alarm_filter',
@@ -101,6 +103,9 @@ test('custom capabilities have complete bilingual UI metadata', () => {
   }
 
   const mode = readJson('.homeycompose', 'capabilities', 'vasco_mode.json');
+  const controlDuration = readJson(
+    '.homeycompose', 'capabilities', 'vasco_control_duration.json',
+  );
   const fireplace = readJson('.homeycompose', 'capabilities', 'vasco_fireplace.json');
   const duration = readJson('.homeycompose', 'capabilities', 'vasco_fireplace_duration.json');
   const remaining = readJson('.homeycompose', 'capabilities', 'measure_fireplace_remaining.json');
@@ -110,6 +115,7 @@ test('custom capabilities have complete bilingual UI metadata', () => {
     'vasco_exhaust_fan',
     'vasco_bypass',
     'vasco_control_state',
+    'vasco_control_duration',
     'vasco_override_end',
     'alarm_filter',
     'alarm_defrost',
@@ -117,6 +123,17 @@ test('custom capabilities have complete bilingual UI metadata', () => {
   ].map(id => readJson('.homeycompose', 'capabilities', `${id}.json`));
 
   assert.equal(mode.setable, true);
+  assert.equal(controlDuration.type, 'enum');
+  assert.equal(controlDuration.getable, true);
+  assert.equal(controlDuration.setable, false);
+  assert.equal(controlDuration.uiComponent, 'sensor');
+  assert.deepEqual(controlDuration.values.map(value => value.id), [
+    'until_schedule',
+    'permanent',
+    'timed',
+  ]);
+  const controlStateIndex = requiredCapabilities.indexOf('vasco_control_state');
+  assert.equal(requiredCapabilities[controlStateIndex + 1], 'vasco_control_duration');
   assert.equal(fireplace.setable, false);
   assert.equal(fireplace.uiComponent, 'sensor');
   assert.equal(duration.type, 'enum');
