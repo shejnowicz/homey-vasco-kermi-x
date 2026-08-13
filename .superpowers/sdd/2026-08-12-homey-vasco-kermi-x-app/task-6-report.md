@@ -67,9 +67,19 @@ and migrate reference-counted registry identities after validated email changes.
   availability callbacks, and notifications are redacted. Tests use only
   synthetic credentials and make no network calls.
 
+## Fix round 2/5 — atomic registry migration
+
+- RED: `node --test test/unit/vasco-account-registry.test.js` failed 1/6.
+  After the replacement hash became visible, acquisition through that hash
+  observed the old email because `await` yielded after synchronous registry
+  migration but before the service committed credentials and session.
+- GREEN: removing that unintended yield made registry migration and the service
+  credential/session swap one synchronous commit after login validation. The
+  focused account suites passed 25/25, `npm test` passed 47/47, and
+  `git diff --check` plus `node --check lib/vasco-account-service.js` passed.
+
 ## Concerns
 
 - The Aikido MCP scanner was not available in this environment, so no Aikido
   SAST result could be produced. Repository secret-safety tests and the full
   test suite passed.
-

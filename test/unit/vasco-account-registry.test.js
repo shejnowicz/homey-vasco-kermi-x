@@ -83,6 +83,52 @@ test('successful email replacement migrates the shared registry identity and ref
   assert.equal(registry.release(newKey), true);
 });
 
+test('new registry identity is not observable before replacement credentials and session are committed', async () => {
+  const oldKey = 'a1d5d4103d619e71d41f4d8e96798978615d95d0ed9f31a860b4524840fd8ccf';
+  const newKey = 'd85ad419e196c69d53fb71ba8d328b48515e6b76407f01ba856d966389ee9a80';
+  const readTokens = [];
+  const registry = new VascoAccountRegistry({
+    apiClientFactory: () => ({
+      login: async email => email.toLowerCase() === 'replacement@example.invalid'
+        ? 'replacement-session-token'
+        : 'old-session-token',
+      getAccountConfiguration: async token => {
+        readTokens.push(token);
+        return fixture;
+      },
+    }),
+    clock: new FakeClock(),
+    notify: () => {},
+  });
+  const service = registry.acquire({ email: 'owner@example.invalid', password: PASSWORD });
+  await service.readConfiguration();
+
+  const update = service.updateCredentials(
+    'replacement@example.invalid',
+    'replacement-horse-fixture',
+  );
+  for (let attempts = 0; service.accountKey !== newKey && attempts < 20; attempts += 1) {
+    await Promise.resolve();
+  }
+  assert.equal(service.accountKey, newKey, 'replacement registry key was never published');
+
+  const acquired = registry.acquire({
+    email: 'replacement@example.invalid',
+    password: 'replacement-horse-fixture',
+  });
+  const observedEmail = acquired.email;
+  const observedRead = acquired.readConfiguration();
+  await update;
+  await observedRead;
+
+  assert.equal(acquired, service);
+  assert.equal(observedEmail, 'replacement@example.invalid');
+  assert.deepEqual(readTokens, ['old-session-token', 'replacement-session-token']);
+  assert.equal(registry.release(oldKey), false);
+  assert.equal(registry.release(newKey), false);
+  assert.equal(registry.release(newKey), true);
+});
+
 test('failed email validation retains the old registry key, credentials, and session', async () => {
   const oldKey = 'a1d5d4103d619e71d41f4d8e96798978615d95d0ed9f31a860b4524840fd8ccf';
   const readTokens = [];
