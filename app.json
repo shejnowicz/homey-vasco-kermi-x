@@ -215,6 +215,55 @@
     "conditions": [
       {
         "title": {
+          "en": "Control duration",
+          "pl": "Sposób sterowania"
+        },
+        "titleFormatted": {
+          "en": "Control duration !{{is|isn't}} [[duration]]",
+          "pl": "Sposób sterowania !{{to|nie jest}} [[duration]]"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          },
+          {
+            "name": "duration",
+            "type": "dropdown",
+            "title": {
+              "en": "Control duration",
+              "pl": "Sposób sterowania"
+            },
+            "values": [
+              {
+                "id": "until_schedule",
+                "title": {
+                  "en": "Until next schedule change",
+                  "pl": "Do następnej zmiany harmonogramu"
+                }
+              },
+              {
+                "id": "permanent",
+                "title": {
+                  "en": "Permanent",
+                  "pl": "Na stałe"
+                }
+              },
+              {
+                "id": "timed",
+                "title": {
+                  "en": "Timed",
+                  "pl": "Czasowo"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "control_duration_is"
+      },
+      {
+        "title": {
           "en": "Defrost",
           "pl": "Odszranianie"
         },
@@ -686,6 +735,7 @@
         "vasco_exhaust_fan",
         "vasco_bypass",
         "vasco_control_state",
+        "vasco_control_duration",
         "vasco_override_end",
         "vasco_fireplace",
         "vasco_fireplace_duration",
@@ -956,6 +1006,39 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor"
+    },
+    "vasco_control_duration": {
+      "type": "enum",
+      "title": {
+        "en": "Control duration",
+        "pl": "Sposób sterowania"
+      },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor",
+      "values": [
+        {
+          "id": "until_schedule",
+          "title": {
+            "en": "Until next schedule change",
+            "pl": "Do następnej zmiany harmonogramu"
+          }
+        },
+        {
+          "id": "permanent",
+          "title": {
+            "en": "Permanent",
+            "pl": "Na stałe"
+          }
+        },
+        {
+          "id": "timed",
+          "title": {
+            "en": "Timed",
+            "pl": "Czasowo"
+          }
+        }
+      ]
     },
     "vasco_control_state": {
       "type": "enum",
