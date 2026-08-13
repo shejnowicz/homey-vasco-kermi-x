@@ -69,6 +69,7 @@ const CAPABILITIES = Object.freeze([
   )],
   ['vasco_override_end', (state, device) => overrideEndValue(
     state.manualSettingActiveTill,
+    device.getNow(),
     device.homey?.i18n?.getLanguage?.(),
     device.homey?.clock?.getTimezone?.(),
   )],
@@ -211,7 +212,8 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       const value = capability === 'vasco_fireplace' && fireplace
         ? fireplace.active
         : mapValue(state, this);
-      if (value === null || value === undefined) continue;
+      if (value === undefined
+        || (value === null && capability !== 'vasco_override_end')) continue;
 
       const previous = this.getCapabilityValue(capability);
       if (Object.is(previous, value)) continue;
@@ -1092,11 +1094,9 @@ function rfAlarmValue(value) {
   return value === null || value === undefined ? null : value !== 0;
 }
 
-function overrideEndValue(value, locale = 'en', timeZone = 'UTC') {
+function overrideEndValue(value, nowMs = Date.now(), locale = 'en', timeZone = 'UTC') {
   if (value === null || value === undefined) return null;
-  if (value === 0) return 'schedule';
-  if (value === -1) return 'permanent';
-  if (!Number.isFinite(value)) return null;
+  if (!Number.isFinite(value) || value <= nowMs) return null;
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;

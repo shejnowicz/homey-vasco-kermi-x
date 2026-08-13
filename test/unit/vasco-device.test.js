@@ -763,6 +763,14 @@ test('timed override end is formatted in the Homey language and timezone', async
   }, { initial: true });
 
   assert.equal(device.getCapabilityValue('vasco_override_end'), '13.08.2026, 15:37');
+
+  await device.applyState({
+    mode: 2,
+    controlMode: 'schedule',
+    manualSettingActiveTill: NOW_MS,
+  }, { initial: false });
+
+  assert.equal(device.getCapabilityValue('vasco_override_end'), null);
 });
 
 test('mode number synchronization writes each supported requested operating mode', async () => {
