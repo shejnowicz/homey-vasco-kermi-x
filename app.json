@@ -961,6 +961,14 @@
         "en": "Fireplace mode",
         "pl": "Tryb kominka"
       },
+      "titleTrue": {
+        "en": "Fireplace mode enabled",
+        "pl": "Tryb kominka włączony"
+      },
+      "titleFalse": {
+        "en": "Fireplace mode disabled",
+        "pl": "Tryb kominka wyłączony"
+      },
       "getable": true,
       "setable": true,
       "uiComponent": "toggle"

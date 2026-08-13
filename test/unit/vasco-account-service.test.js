@@ -34,6 +34,15 @@ async function settle() {
   }
 }
 
+async function advanceNextTimer(clock) {
+  for (let attempt = 0; attempt < 8 && clock.nextDelay() === null; attempt += 1) {
+    await settle();
+  }
+  const delay = clock.nextDelay();
+  assert.notEqual(delay, null, 'expected a scheduled timer');
+  clock.advance(delay);
+}
+
 class FakeClock {
   constructor(nowMs = 1_725_000_000_000) {
     this.nowMs = nowMs;
@@ -363,10 +372,42 @@ test('a command returns mapped confirmed state and rejects an unconfirmed state'
   );
   assert.equal(state.requestedMode, 4);
 
-  await assert.rejects(
-    () => service.executeDeviceCommand(KITCHEN.identity, raw => ({ ...raw }), () => false),
-    VascoProtocolError,
+  const rejection = service.executeDeviceCommand(
+    KITCHEN.identity,
+    raw => ({ ...raw }),
+    () => false,
   );
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await advanceNextTimer(service.clock);
+  }
+  await assert.rejects(rejection, VascoProtocolError);
+});
+
+test('command confirmation retries while the Vasco cloud still returns stale state', async () => {
+  const clock = new FakeClock();
+  let reads = 0;
+  const apiClient = {
+    login: async () => OLD_TOKEN,
+    getAccountConfiguration: async () => {
+      reads += 1;
+      return reads < 4
+        ? configurationWithRequestedLevels(2)
+        : configurationWithRequestedLevels(4);
+    },
+    setDeviceProperties: async () => ({ accepted: true }),
+  };
+  const service = createService(apiClient, { clock });
+
+  const command = service.executeDeviceCommand(
+    KITCHEN.identity,
+    raw => ({ ...raw, nextParameter: 'requestedLevel', nextValue: 4 }),
+    observed => observed.requestedMode === 4,
+  );
+  await advanceNextTimer(clock);
+  await advanceNextTimer(clock);
+
+  assert.equal((await command).requestedMode, 4);
+  assert.equal(reads, 4);
 });
 
 test('polling waits for the configured interval, does not overlap, and reports availability only on transitions', async () => {
