@@ -9,6 +9,7 @@ const {
   restorationRequest,
   stoppedSession,
 } = require('../../lib/vasco-fireplace-session');
+const { buildModeCommand } = require('../../lib/vasco-command-builder');
 
 const NOW_MS = 1_700_000_000_000;
 
@@ -75,6 +76,15 @@ test('createManagedSession rejects unsupported durations and malformed mode snap
   }
   assert.throws(() => createManagedSession({ ...state, mode: 5 }, 5, NOW_MS), RangeError);
   assert.throws(() => createManagedSession(state, 5, Number.NaN), TypeError);
+});
+
+test('createManagedSession accepts every supported Fireplace picker duration', () => {
+  const state = { mode: 4, controlMode: 'schedule', manualSettingActiveTill: 0 };
+  const minutes = Array.from({ length: 17 }, (_, index) => (index + 1) * 5);
+
+  assert.deepEqual(minutes.map(value => (
+    createManagedSession(state, value, NOW_MS).selectedMinutes
+  )), minutes);
 });
 
 test('parseStoredSession rejects malformed or sensitive persisted data and expired managed sessions', () => {
@@ -149,6 +159,28 @@ test('restorationRequest restores an active timed override for rounded-up whole 
     mode: 'guests',
     duration: { type: 'minutes', minutes: 1 },
     nowMs: NOW_MS + (3 * 60_000),
+  });
+});
+
+test('restorationRequest clamps a long active timed override to the mode-command limit', () => {
+  const session = createManagedSession({
+    mode: 4,
+    controlMode: 'manual',
+    manualSettingActiveTill: NOW_MS + (1_441 * 60_000),
+  }, 5, NOW_MS);
+
+  const request = restorationRequest(session, NOW_MS);
+
+  assert.deepEqual(request, {
+    mode: 'auto',
+    duration: { type: 'minutes', minutes: 1_440 },
+    nowMs: NOW_MS,
+  });
+  assert.deepEqual(buildModeCommand({}, request), {
+    nextParameter: 'requestedLevel',
+    nextValue: 4,
+    controlMode: 'manual',
+    manualSettingActiveTill: NOW_MS + (1_440 * 60_000),
   });
 });
 
