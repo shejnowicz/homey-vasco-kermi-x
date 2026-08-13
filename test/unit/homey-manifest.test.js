@@ -24,6 +24,8 @@ const requiredCapabilities = [
   'alarm_defrost',
   'alarm_rf',
   'button.test_connection',
+  'button.enable_fireplace',
+  'measure_vasco_mode',
 ];
 
 const requiredSettings = [
@@ -53,6 +55,10 @@ test('Homey Compose manifest exposes the Vasco device contract', () => {
     ['30', '60', '120', '300', '600'],
   );
   assert.equal(settingsById.poll_interval.value, '60');
+  const duration = settingsById.default_duration_type;
+  assert.equal(duration.value, 'schedule');
+  assert.match(duration.hint.en, /device.*Flow/i);
+  assert.match(duration.hint.pl, /urządzeni.*Flow/i);
   for (const id of ['default_duration_minutes', 'default_fireplace_minutes']) {
     assert.equal(settingsById[id].min, 1);
     assert.equal(settingsById[id].max, 1440);
@@ -92,6 +98,7 @@ test('custom capabilities have complete bilingual UI metadata', () => {
 
   const mode = readJson('.homeycompose', 'capabilities', 'vasco_mode.json');
   const fireplace = readJson('.homeycompose', 'capabilities', 'vasco_fireplace.json');
+  const modeNumber = readJson('.homeycompose', 'capabilities', 'measure_vasco_mode.json');
   const diagnostics = [
     'vasco_supply_fan',
     'vasco_exhaust_fan',
@@ -104,7 +111,18 @@ test('custom capabilities have complete bilingual UI metadata', () => {
   ].map(id => readJson('.homeycompose', 'capabilities', `${id}.json`));
 
   assert.equal(mode.setable, true);
-  assert.equal(fireplace.setable, true);
+  assert.equal(fireplace.setable, false);
+  assert.equal(fireplace.uiComponent, 'sensor');
+  assert.equal(modeNumber.type, 'number');
+  assert.equal(modeNumber.getable, true);
+  assert.equal(modeNumber.setable, false);
+  assert.equal(modeNumber.min, 1);
+  assert.equal(modeNumber.max, 7);
+  assert.equal(modeNumber.step, 1);
+  assert.equal(modeNumber.decimals, 0);
+  assert.equal(Object.hasOwn(modeNumber, 'units'), false);
+  assert.equal(typeof modeNumber.title.en, 'string');
+  assert.equal(typeof modeNumber.title.pl, 'string');
   assert.ok(diagnostics.every(capability => capability.getable && !capability.setable));
 });
 
@@ -126,6 +144,24 @@ test('test connection derives from the system button as a maintenance action', (
     'legacy custom test-connection capability must be removed',
   );
   assert.equal(action.maintenanceAction, true);
+  assert.equal(typeof action.title.en, 'string');
+  assert.equal(typeof action.title.pl, 'string');
+  assert.equal(typeof action.desc.en, 'string');
+  assert.equal(typeof action.desc.pl, 'string');
+});
+
+test('Fireplace enable derives from the system button as an explicit control', () => {
+  const driver = readJson('drivers', 'vasco-kermi-x', 'driver.compose.json');
+  const capabilityId = 'button.enable_fireplace';
+  const action = driver.capabilitiesOptions[capabilityId];
+
+  assert.ok(driver.capabilities.includes(capabilityId));
+  assert.equal(capabilityId.split('.')[0], 'button');
+  assert.equal(
+    existsSync(join(root, '.homeycompose', 'capabilities', 'button.json')),
+    false,
+    'system button must not be overridden by an app capability',
+  );
   assert.equal(typeof action.title.en, 'string');
   assert.equal(typeof action.title.pl, 'string');
   assert.equal(typeof action.desc.en, 'string');

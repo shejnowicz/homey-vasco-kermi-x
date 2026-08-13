@@ -1,8 +1,8 @@
 {
   "type": "boolean",
   "title": {
-    "en": "Fireplace mode",
-    "pl": "Tryb kominka"
+    "en": "Fireplace mode active",
+    "pl": "Tryb kominka aktywny"
   },
   "titleTrue": {
     "en": "Fireplace mode enabled",
@@ -13,6 +13,6 @@
     "pl": "Tryb kominka wyłączony"
   },
   "getable": true,
-  "setable": true,
-  "uiComponent": "toggle"
+  "setable": false,
+  "uiComponent": "sensor"
 }

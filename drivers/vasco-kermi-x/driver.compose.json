@@ -39,7 +39,9 @@
     "alarm_generic",
     "alarm_defrost",
     "alarm_rf",
-    "button.test_connection"
+    "button.test_connection",
+    "button.enable_fireplace",
+    "measure_vasco_mode"
   ],
   "capabilitiesOptions": {
     "measure_temperature.indoor": {
@@ -57,6 +59,13 @@
       "desc": {
         "en": "Check whether the saved Vasco credentials can connect to the cloud service.",
         "pl": "Sprawdź, czy zapisane dane Vasco umożliwiają połączenie z usługą chmurową."
+      }
+    },
+    "button.enable_fireplace": {
+      "title": { "en": "Enable Fireplace mode", "pl": "Włącz tryb kominka" },
+      "desc": {
+        "en": "Enable Fireplace mode for the configured default duration.",
+        "pl": "Włącz tryb kominka na skonfigurowany domyślny czas."
       }
     }
   }

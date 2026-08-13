@@ -28,6 +28,10 @@
     "id": "default_duration_type",
     "type": "dropdown",
     "label": { "en": "Default control duration", "pl": "Domyślny czas sterowania" },
+    "hint": {
+      "en": "Controls changes made from the device operating-mode picker. Flow action cards can still choose an explicit override.",
+      "pl": "Steruje zmianami wprowadzonymi z poziomu urządzenia przez wybór trybu pracy. Karty akcji Flow nadal mogą wybrać jawne sterowanie."
+    },
     "value": "schedule",
     "values": [
       { "id": "schedule", "label": { "en": "Until next schedule change", "pl": "Do następnej zmiany harmonogramu" } },
