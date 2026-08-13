@@ -74,6 +74,17 @@ test('Homey icons use the full 960 canvas with transparent, distinct ventilation
   assert.match(driverIcon, /id="unit-perspective"/);
 });
 
+test('Fireplace capability icon is safe monochrome fireplace artwork', () => {
+  const icon = read('assets', 'vasco_fireplace.svg');
+  assert.match(icon, /viewBox="0 0 960 960"/);
+  assert.match(icon, /id="fireplace-surround"/);
+  assert.match(icon, /id="hearth-flame"/);
+  assert.doesNotMatch(
+    icon,
+    /<script|<image|href=|url\(|<text|linearGradient|radialGradient/i,
+  );
+});
+
 test('store descriptions are plain text and packaging excludes development material', () => {
   for (const filename of ['README.txt', 'README.pl.txt']) {
     const description = read(filename);

@@ -14,5 +14,7 @@
   },
   "getable": true,
   "setable": true,
-  "uiComponent": "toggle"
+  "uiComponent": "toggle",
+  "uiQuickAction": true,
+  "icon": "/assets/vasco_fireplace.svg"
 }

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 960" role="img" aria-label="Fireplace">
+  <g fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">
+    <g id="fireplace-surround" stroke-width="64">
+      <path d="M130 270h700M185 270v560M775 270v560M120 830h720"/>
+      <path d="M300 830V430h360v400"/>
+    </g>
+    <g id="hearth-flame" stroke-width="58">
+      <path d="M480 725c-92 0-148-55-148-137 0-67 40-113 92-166 3 67 34 87 56 120 25-43 49-76 45-132 70 61 103 111 103 178 0 82-56 137-148 137Z"/>
+      <path d="M480 710c-39 0-65-26-65-64 0-30 18-53 48-83 2 31 17 43 27 58 13-22 25-39 23-68 32 29 48 56 48 93 0 38-30 64-81 64Z"/>
+    </g>
+  </g>
+</svg>

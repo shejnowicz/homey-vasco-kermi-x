@@ -137,6 +137,8 @@ test('custom capabilities have complete bilingual UI metadata', () => {
   assert.equal(requiredCapabilities[controlStateIndex + 1], 'vasco_control_duration');
   assert.equal(fireplace.setable, true);
   assert.equal(fireplace.uiComponent, 'toggle');
+  assert.equal(fireplace.icon, '/assets/vasco_fireplace.svg');
+  assert.equal(fireplace.uiQuickAction, true);
   assert.equal(duration.type, 'enum');
   assert.equal(duration.getable, true);
   assert.equal(duration.setable, true);
