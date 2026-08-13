@@ -3,7 +3,7 @@
     "en": "Vasco/Kermi X Series Ventilation Unit",
     "pl": "Centrala wentylacyjna Vasco/Kermi serii X"
   },
-  "class": "sensor",
+  "class": "fan",
   "connectivity": ["cloud"],
   "pair": [
     {

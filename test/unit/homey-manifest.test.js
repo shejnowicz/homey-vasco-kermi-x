@@ -41,7 +41,7 @@ test('Homey Compose manifest exposes the Vasco device contract', () => {
   const english = readJson('locales', 'en.json');
   const polish = readJson('locales', 'pl.json');
 
-  assert.equal(driver.class, 'sensor');
+  assert.equal(driver.class, 'fan');
   assert.deepEqual(driver.connectivity, ['cloud']);
   assert.deepEqual(driver.capabilities, requiredCapabilities);
   assert.deepEqual(settings.map(setting => setting.id), requiredSettings);
