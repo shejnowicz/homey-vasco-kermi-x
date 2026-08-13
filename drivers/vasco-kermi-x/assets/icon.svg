@@ -1,8 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Ventilation unit">
-  <g fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">
-    <rect x="106" y="76" width="300" height="360" rx="38" stroke-width="30"/>
-    <path d="M156 146h200M156 196h200M156 246h200" stroke-width="24"/>
-    <circle cx="256" cy="342" r="54" stroke-width="26"/>
-    <path d="M256 288c19 25 22 47 7 66M310 342c-25 19-47 22-66 7M256 396c-19-25-22-47-7-66M202 342c25-19 47-22 66-7" stroke-width="18"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 960" role="img" aria-label="Ventilation unit in perspective">
+  <g id="unit-perspective" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M105 180 650 80l205 125v590L310 900 105 775Z" stroke-width="60"/>
+    <path d="M650 80v595L310 900V300Z" stroke-width="52"/>
+    <path d="m105 180 205 120 545-95" stroke-width="52"/>
+    <path d="M190 370h40M190 485h40M190 600h40" stroke-width="62"/>
+    <circle cx="470" cy="630" r="138" stroke-width="56"/>
+    <path d="M470 492c54 57 68 111 36 161M608 630c-57 54-111 68-161 36M470 768c-54-57-68-111-36-161M332 630c57-54 111-68 161-36" stroke-width="48"/>
   </g>
 </svg>

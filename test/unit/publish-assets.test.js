@@ -60,6 +60,20 @@ test('publish manifests reference complete app and driver artwork', () => {
   }
 });
 
+test('Homey icons use the full 960 canvas with transparent, distinct ventilation artwork', () => {
+  const appIcon = read('assets', 'icon.svg');
+  const driverIcon = read('drivers', 'vasco-kermi-x', 'assets', 'icon.svg');
+
+  for (const icon of [appIcon, driverIcon]) {
+    assert.match(icon, /viewBox="0 0 960 960"/);
+    assert.doesNotMatch(icon, /<rect[^>]+width="960"[^>]+height="960"[^>]+fill=/);
+    assert.match(icon, /(?:fill|stroke)="#000"/);
+  }
+  assert.notEqual(appIcon, driverIcon);
+  assert.match(appIcon, /id="fan-rotor"/);
+  assert.match(driverIcon, /id="unit-perspective"/);
+});
+
 test('store descriptions are plain text and packaging excludes development material', () => {
   for (const filename of ['README.txt', 'README.pl.txt']) {
     const description = read(filename);
