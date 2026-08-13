@@ -26,102 +26,49 @@ test('driver Flow manifest defines every approved bilingual card with safe argum
     false,
   );
 
+  const labels = (en, pl, formattedEn = en, formattedPl = pl) => ({
+    title: { en, pl },
+    titleFormatted: { en: formattedEn, pl: formattedPl },
+  });
   const expectedTitles = {
     actions: {
-      set_mode_until_schedule: {
-        en: 'Set [[device]] operating mode to [[mode]] until the next schedule change',
-        pl: 'Ustaw tryb pracy [[device]] na [[mode]] do następnej zmiany harmonogramu',
-      },
-      set_mode_permanent: {
-        en: 'Set [[device]] operating mode to [[mode]] permanently',
-        pl: 'Ustaw tryb pracy [[device]] na [[mode]] na stałe',
-      },
-      set_mode_for_minutes: {
-        en: 'Set [[device]] operating mode to [[mode]] for [[minutes]] minutes',
-        pl: 'Ustaw tryb pracy [[device]] na [[mode]] na [[minutes]] minut',
-      },
-      enable_fireplace_for_minutes: {
-        en: 'Enable Fireplace mode on [[device]] for [[minutes]] minutes',
-        pl: 'Włącz tryb kominka w [[device]] na [[minutes]] minut',
-      },
-      refresh_state: {
-        en: 'Refresh [[device]] state',
-        pl: 'Odśwież stan [[device]]',
-      },
+      set_mode_until_schedule: labels('Set operating mode', 'Ustaw tryb pracy', 'Set operating mode to [[mode]] until the next schedule change', 'Ustaw tryb pracy na [[mode]] do następnej zmiany harmonogramu'),
+      set_mode_permanent: labels('Set operating mode', 'Ustaw tryb pracy', 'Set operating mode to [[mode]] permanently', 'Ustaw tryb pracy na [[mode]] na stałe'),
+      set_mode_for_minutes: labels('Set operating mode', 'Ustaw tryb pracy', 'Set operating mode to [[mode]] for [[minutes]] minutes', 'Ustaw tryb pracy na [[mode]] na [[minutes]] minut'),
+      enable_fireplace_for_minutes: labels('Enable Fireplace mode', 'Włącz tryb kominka', 'Enable Fireplace mode for [[minutes]] minutes', 'Włącz tryb kominka na [[minutes]] minut'),
+      refresh_state: labels('Refresh state', 'Odśwież stan'),
     },
     conditions: {
-      mode_is: {
-        en: '[[device]] operating mode !{{is|isn\'t}} [[mode]]',
-        pl: 'Tryb pracy [[device]] !{{to|nie jest}} [[mode]]',
-      },
-      fireplace_is_active: {
-        en: 'Fireplace mode on [[device]] !{{is|isn\'t}} active',
-        pl: 'Tryb kominka w [[device]] !{{jest|nie jest}} aktywny',
-      },
-      manual_override_is_active: {
-        en: 'Manual override on [[device]] !{{is|isn\'t}} active',
-        pl: 'Ręczne sterowanie w [[device]] !{{jest|nie jest}} aktywne',
-      },
-      filter_attention: {
-        en: '[[device]] filter !{{requires|doesn\'t require}} attention',
-        pl: 'Filtr [[device]] !{{wymaga|nie wymaga}} uwagi',
-      },
-      fault_present: {
-        en: '[[device]] !{{has|doesn\'t have}} a fault',
-        pl: '[[device]] !{{ma|nie ma}} usterki',
-      },
-      defrost_active: {
-        en: 'Defrost on [[device]] !{{is|isn\'t}} active',
-        pl: 'Odszranianie w [[device]] !{{jest|nie jest}} aktywne',
-      },
+      mode_is: labels('Operating mode', 'Tryb pracy', 'Operating mode !{{is|isn\'t}} [[mode]]', 'Tryb pracy !{{to|nie jest}} [[mode]]'),
+      fireplace_is_active: labels('Fireplace mode', 'Tryb kominka', 'Fireplace mode !{{is|isn\'t}} active', 'Tryb kominka !{{jest|nie jest}} aktywny'),
+      manual_override_is_active: labels('Manual override', 'Ręczne sterowanie', 'Manual override !{{is|isn\'t}} active', 'Ręczne sterowanie !{{jest|nie jest}} aktywne'),
+      filter_attention: labels('Filter attention', 'Uwaga dotycząca filtra', 'Filter !{{requires|doesn\'t require}} attention', 'Filtr !{{wymaga|nie wymaga}} uwagi'),
+      fault_present: labels('Fault', 'Usterka', 'Device !{{has|doesn\'t have}} a fault', 'Urządzenie !{{ma|nie ma}} usterki'),
+      defrost_active: labels('Defrost', 'Odszranianie', 'Defrost !{{is|isn\'t}} active', 'Odszranianie !{{jest|nie jest}} aktywne'),
     },
     triggers: {
-      mode_changed: {
-        en: '[[device]] operating mode changed',
-        pl: 'Zmieniono tryb pracy [[device]]',
-      },
-      fireplace_enabled: {
-        en: 'Fireplace mode was enabled on [[device]]',
-        pl: 'Włączono tryb kominka w [[device]]',
-      },
-      fireplace_disabled: {
-        en: 'Fireplace mode was disabled on [[device]]',
-        pl: 'Wyłączono tryb kominka w [[device]]',
-      },
-      filter_warning_appeared: {
-        en: '[[device]] filter warning appeared',
-        pl: 'Pojawiło się ostrzeżenie filtra [[device]]',
-      },
-      fault_appeared: {
-        en: '[[device]] fault appeared',
-        pl: 'Pojawiła się usterka [[device]]',
-      },
-      fault_cleared: {
-        en: '[[device]] fault was cleared',
-        pl: 'Usterka [[device]] została usunięta',
-      },
-      device_became_unavailable: {
-        en: '[[device]] became unavailable',
-        pl: '[[device]] stało się niedostępne',
-      },
-      device_became_available: {
-        en: '[[device]] became available',
-        pl: '[[device]] stało się dostępne',
-      },
+      mode_changed: labels('Operating mode changed', 'Zmieniono tryb pracy'),
+      fireplace_enabled: labels('Fireplace mode enabled', 'Włączono tryb kominka', 'Fireplace mode was enabled', 'Włączono tryb kominka'),
+      fireplace_disabled: labels('Fireplace mode disabled', 'Wyłączono tryb kominka', 'Fireplace mode was disabled', 'Wyłączono tryb kominka'),
+      filter_warning_appeared: labels('Filter warning appeared', 'Pojawiło się ostrzeżenie filtra'),
+      fault_appeared: labels('Fault appeared', 'Pojawiła się usterka'),
+      fault_cleared: labels('Fault cleared', 'Usterka została usunięta', 'Fault was cleared', 'Usterka została usunięta'),
+      device_became_unavailable: labels('Device became unavailable', 'Urządzenie stało się niedostępne'),
+      device_became_available: labels('Device became available', 'Urządzenie stało się dostępne'),
     },
   };
 
   for (const [type, cards] of Object.entries(expectedTitles)) {
-    for (const [id, title] of Object.entries(cards)) {
+    for (const [id, expected] of Object.entries(cards)) {
       const card = readFlow(type, id);
-      assert.equal(typeof card.titleFormatted.en, 'string', `${type}/${id}`);
-      assert.equal(typeof card.titleFormatted.pl, 'string', `${type}/${id}`);
-      assert.equal(card.title.en.includes('[[device]]'), false, `${type}/${id}`);
-      assert.equal(card.title.pl.includes('[[device]]'), false, `${type}/${id}`);
-      assert.equal(card.titleFormatted.en.includes('[[device]]'), false, `${type}/${id}`);
-      assert.equal(card.titleFormatted.pl.includes('[[device]]'), false, `${type}/${id}`);
+      assert.deepEqual({ title: card.title, titleFormatted: card.titleFormatted }, expected, `${type}/${id}`);
     }
   }
+  const modeCard = readFlow('actions', 'set_mode_for_minutes');
+  assert.throws(() => assert.deepEqual({
+    title: { ...modeCard.title, en: 'Wrong title' },
+    titleFormatted: modeCard.titleFormatted,
+  }, expectedTitles.actions.set_mode_for_minutes));
 
   for (const id of ['set_mode_until_schedule', 'set_mode_permanent', 'set_mode_for_minutes', 'mode_is']) {
     const mode = readFlow(id === 'mode_is' ? 'conditions' : 'actions', id).args

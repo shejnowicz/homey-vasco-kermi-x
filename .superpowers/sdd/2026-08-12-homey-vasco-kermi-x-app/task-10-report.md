@@ -44,3 +44,10 @@ available in this session, so an Aikido scan could not be run.
 Publish-level validation remains blocked by the pre-existing Task 11 store
 asset requirement: `drivers.vasco-kermi-x: property images is required in
 order to publish an app`.
+
+## Fix round 1
+
+The Flow-card test now compares the exact bilingual `title` and
+`titleFormatted` object for every approved card, including every localized
+invertible condition. It includes a deliberate in-memory title mutation that
+must be rejected, so label expectations cannot silently become unused again.
