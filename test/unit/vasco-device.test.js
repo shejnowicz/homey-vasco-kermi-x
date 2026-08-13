@@ -1,0 +1,578 @@
+const { createHash } = require('node:crypto');
+const Module = require('node:module');
+const assert = require('node:assert/strict');
+const { test } = require('node:test');
+
+const fixture = require('../fixtures/account-multiple-devices');
+const { VascoAccountService } = require('../../lib/vasco-account-service');
+const { VascoProtocolError, VascoTransportError } = require('../../lib/vasco-errors');
+
+const EMAIL = 'device-owner@example.invalid';
+const PASSWORD = 'synthetic-device-password';
+const NEW_EMAIL = 'replacement-device-owner@example.invalid';
+const NEW_PASSWORD = 'synthetic-replacement-password';
+const KITCHEN_ID = createHash('sha256')
+  .update('synthetic-gateway-west\u0000synthetic-device-kitchen')
+  .digest('hex');
+const NOW_MS = 1_725_100_000_000;
+
+class HomeyDeviceDouble {
+  configure({ settings = {}, data = { id: KITCHEN_ID }, app = {} } = {}) {
+    this.settings = {
+      vasco_email: EMAIL,
+      vasco_password: PASSWORD,
+      poll_interval: '60',
+      default_duration_type: 'schedule',
+      default_duration_minutes: 60,
+      default_fireplace_minutes: 5,
+      ...settings,
+    };
+    this.data = data;
+    this.capabilities = new Map();
+    this.capabilityWrites = [];
+    this.capabilityListeners = new Map();
+    this.availability = [];
+    this.logged = [];
+    this.homey = {
+      app,
+      notifications: { createNotification: async () => undefined },
+    };
+    return this;
+  }
+
+  getSettings() {
+    return { ...this.settings };
+  }
+
+  getData() {
+    return { ...this.data };
+  }
+
+  registerCapabilityListener(capability, listener) {
+    this.capabilityListeners.set(capability, listener);
+  }
+
+  getCapabilityValue(capability) {
+    return this.capabilities.get(capability) ?? null;
+  }
+
+  async setCapabilityValue(capability, value) {
+    this.capabilityWrites.push([capability, value]);
+    this.capabilities.set(capability, value);
+  }
+
+  async setAvailable() {
+    this.availability.push({ available: true });
+  }
+
+  async setUnavailable(message) {
+    this.availability.push({ available: false, message });
+  }
+
+  log(...values) {
+    this.logged.push(values);
+  }
+
+  error(...values) {
+    this.logged.push(values);
+  }
+}
+
+function loadDeviceClass() {
+  const devicePath = require.resolve('../../drivers/vasco-kermi-x/device');
+  const originalLoad = Module._load;
+  Module._load = function load(request, parent, isMain) {
+    if (request === 'homey') {
+      return { Device: HomeyDeviceDouble };
+    }
+    return originalLoad.call(this, request, parent, isMain);
+  };
+
+  try {
+    delete require.cache[devicePath];
+    return require(devicePath);
+  } finally {
+    Module._load = originalLoad;
+  }
+}
+
+const VascoDevice = loadDeviceClass();
+
+class AccountServiceDouble {
+  constructor(configuration = fixture) {
+    this.accountKey = 'synthetic-account-key';
+    this.configuration = configuration;
+    this.reads = [];
+    this.commands = [];
+    this.pollingStarts = [];
+    this.pollingStops = 0;
+    this.credentialUpdates = [];
+  }
+
+  async readConfiguration(options = {}) {
+    this.reads.push(options);
+    return this.configuration;
+  }
+
+  async executeDeviceCommand(identity, build, confirm) {
+    const raw = structuredClone(fixture.deviceProperties[0]);
+    const command = build(raw);
+    this.commands.push({ identity, command });
+    const state = {
+      mode: command.requestedLevel,
+      requestedMode: command.requestedLevel,
+      controlMode: command.controlMode,
+      manualSettingActiveTill: command.manualSettingActiveTill,
+      fanSpeedInlet: 41,
+      fanSpeedExhaust: 39,
+      indoorTemperature: 21.4,
+      outdoorTemperature: 8.1,
+      bypassPosition: 0,
+      filterDirty: 0,
+      defrost: 0,
+      faultStatus: 0,
+      rfCommunicationStatus: 1,
+      fireplaceModeStatus: command.fireplaceModeStatus,
+      fireplaceModeTime: command.fireplaceModeTime,
+    };
+    if (!confirm(state)) throw new VascoProtocolError('confirmation rejected');
+    return state;
+  }
+
+  startPolling(intervalSeconds, onState, onAvailability) {
+    this.pollingStarts.push({ intervalSeconds, onState, onAvailability });
+  }
+
+  stopPolling() {
+    this.pollingStops += 1;
+  }
+
+  async updateCredentials(email, password) {
+    this.credentialUpdates.push({ email, password });
+    this.accountKey = 'synthetic-rekeyed-account';
+  }
+}
+
+class AccountRegistryDouble {
+  constructor(service) {
+    this.service = service;
+    this.acquisitions = [];
+    this.releases = [];
+  }
+
+  acquire(credentials) {
+    this.acquisitions.push(credentials);
+    return this.service;
+  }
+
+  release(accountKey) {
+    this.releases.push(accountKey);
+    return true;
+  }
+}
+
+function createHarness({ service = new AccountServiceDouble(), settings, app } = {}) {
+  const transitions = [];
+  const transitionApp = app ?? {
+    onVascoDeviceTransition: async (device, event, tokens) => {
+      transitions.push({ device, event, tokens });
+    },
+  };
+  const registry = new AccountRegistryDouble(service);
+  const device = new VascoDevice().configure({ settings, app: transitionApp });
+  device.getAccountRegistry = () => registry;
+  device.getNow = () => NOW_MS;
+  return { device, registry, service, transitions };
+}
+
+async function settle() {
+  for (let index = 0; index < 12; index += 1) await Promise.resolve();
+}
+
+test('initialization acquires the shared account, registers controls, syncs before polling, and skips null values', async () => {
+  const configuration = structuredClone(fixture);
+  delete configuration.deviceProperties[0].outdoorTemperature;
+  const service = new AccountServiceDouble(configuration);
+  const { device, registry, transitions } = createHarness({ service });
+  device.capabilities.set('measure_temperature.outdoor', 17.5);
+
+  await device.onInit();
+
+  assert.deepEqual(registry.acquisitions, [{ email: EMAIL, password: PASSWORD }]);
+  assert.deepEqual([...device.capabilityListeners.keys()].sort(), [
+    'button.test_connection',
+    'vasco_fireplace',
+    'vasco_mode',
+  ]);
+  assert.equal(service.reads.length, 1);
+  assert.equal(service.pollingStarts.length, 1);
+  assert.equal(service.pollingStarts[0].intervalSeconds, 60);
+  assert.equal(device.capabilities.get('vasco_mode'), 'high');
+  assert.equal(device.capabilities.get('measure_temperature.indoor'), 21.4);
+  assert.equal(device.capabilities.get('measure_temperature.outdoor'), 17.5);
+  assert.equal(device.capabilityWrites.some(([id]) => id === 'measure_temperature.outdoor'), false);
+  assert.equal(device.capabilities.get('alarm_rf'), false);
+  assert.deepEqual(transitions, []);
+  assert.deepEqual(device.availability, [{ available: true }]);
+});
+
+test('applyState writes only changed non-null capabilities and emits post-initialization transitions', async () => {
+  const { device, transitions } = createHarness();
+  await device.applyState({
+    requestedMode: 2,
+    indoorTemperature: 21,
+    outdoorTemperature: null,
+    fanSpeedInlet: 40,
+    fanSpeedExhaust: 38,
+    bypassPosition: 5,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+    fireplaceModeStatus: 0,
+    filterDirty: 0,
+    faultStatus: 1,
+    defrost: 0,
+    rfCommunicationStatus: 1,
+  }, { initial: true });
+  device.capabilityWrites.length = 0;
+
+  await device.applyState({
+    requestedMode: 3,
+    indoorTemperature: 21,
+    outdoorTemperature: null,
+    fanSpeedInlet: 40,
+    fanSpeedExhaust: 38,
+    bypassPosition: 5,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+    fireplaceModeStatus: 1,
+    filterDirty: 1,
+    faultStatus: 0,
+    defrost: 0,
+    rfCommunicationStatus: 1,
+  }, { initial: false });
+
+  assert.deepEqual(device.capabilityWrites, [
+    ['vasco_mode', 'high'],
+    ['vasco_fireplace', true],
+    ['alarm_filter', true],
+    ['alarm_generic', false],
+  ]);
+  assert.deepEqual(transitions.map(({ event, tokens }) => ({ event, tokens })), [
+    { event: 'mode_changed', tokens: { previous_mode: 'medium', new_mode: 'high' } },
+    { event: 'fireplace_enabled', tokens: {} },
+    { event: 'filter_warning_appeared', tokens: {} },
+    { event: 'fault_cleared', tokens: {} },
+  ]);
+});
+
+test('the mode picker uses the configured default duration and applies confirmed state immediately', async () => {
+  const { device, service } = createHarness({
+    settings: {
+      default_duration_type: 'minutes',
+      default_duration_minutes: 30,
+    },
+  });
+  await device.onInit();
+
+  await device.capabilityListeners.get('vasco_mode')('auto');
+
+  assert.equal(service.commands.length, 1);
+  assert.equal(service.commands[0].identity, KITCHEN_ID);
+  assert.deepEqual(service.commands[0].command, {
+    ...fixture.deviceProperties[0],
+    requestedLevel: 4,
+    controlMode: 'manual',
+    manualSettingActiveTill: NOW_MS + (30 * 60_000),
+  });
+  assert.equal(device.capabilities.get('vasco_mode'), 'auto');
+});
+
+test('the Fireplace switch sends the configured enable duration and applies confirmation immediately', async () => {
+  const { device, service } = createHarness({
+    settings: { default_fireplace_minutes: 45 },
+  });
+  await device.onInit();
+
+  await device.capabilityListeners.get('vasco_fireplace')(true);
+
+  assert.deepEqual(service.commands[0].command, {
+    ...fixture.deviceProperties[0],
+    fireplaceModeStatus: 1,
+    fireplaceModeTime: 45,
+  });
+  assert.equal(device.capabilities.get('vasco_fireplace'), true);
+});
+
+test('unconfirmed commands restore the observed state and expose only a fixed error', async () => {
+  const secret = 'private-upstream-response';
+  const observed = structuredClone(fixture);
+  observed.deviceProperties[0].requestedLevel = 1;
+  const service = new AccountServiceDouble(observed);
+  service.executeDeviceCommand = async () => {
+    throw new VascoProtocolError(`${secret}: command rejected`);
+  };
+  const { device } = createHarness({ service });
+  await device.onInit();
+  device.capabilities.set('vasco_mode', 'high');
+
+  await assert.rejects(
+    () => device.setOperatingMode('auto', { type: 'schedule' }),
+    (error) => {
+      assert.match(error.message, /confirm|mode/i);
+      assert.doesNotMatch(error.message, new RegExp(secret));
+      return true;
+    },
+  );
+  assert.equal(device.capabilities.get('vasco_mode'), 'low');
+});
+
+test('shared polling marks a device unavailable only after three transport failures and recovers it', async () => {
+  const clock = new FakeClock();
+  const outcomes = [
+    fixture,
+    new VascoTransportError('one'),
+    new VascoTransportError('two'),
+    new VascoTransportError('three'),
+    fixture,
+  ];
+  const service = new VascoAccountService({
+    apiClient: {
+      login: async () => 'synthetic-token',
+      getAccountConfiguration: async () => {
+        const outcome = outcomes.shift();
+        if (outcome instanceof Error) throw outcome;
+        return outcome;
+      },
+    },
+    email: EMAIL,
+    password: PASSWORD,
+    clock,
+  });
+  const { device, transitions } = createHarness({ service });
+  await device.onInit();
+
+  clock.advance(60_000);
+  await settle();
+  clock.advance(30_000);
+  await settle();
+  assert.deepEqual(device.availability, [{ available: true }]);
+  clock.advance(60_000);
+  await settle();
+  assert.equal(device.availability.at(-1).available, false);
+  assert.doesNotMatch(device.availability.at(-1).message, /one|two|three/);
+  clock.advance(120_000);
+  await settle();
+  assert.equal(device.availability.at(-1).available, true);
+  assert.deepEqual(transitions.map(({ event }) => event), [
+    'device_became_unavailable',
+    'device_became_available',
+  ]);
+});
+
+test('the Maintenance Action forces a fresh read, updates state, and restores availability', async () => {
+  const updated = structuredClone(fixture);
+  updated.deviceProperties[0].requestedLevel = 6;
+  const service = new AccountServiceDouble(fixture);
+  const { device } = createHarness({ service });
+  await device.onInit();
+  service.configuration = updated;
+  device.availability.length = 0;
+
+  const result = await device.capabilityListeners.get('button.test_connection')();
+
+  assert.equal(result, true);
+  assert.deepEqual(service.reads.at(-1), { force: true });
+  assert.equal(device.capabilities.get('vasco_mode'), 'holidays');
+  assert.deepEqual(device.availability, []);
+});
+
+test('credential settings validate and rekey before polling is rescheduled or deletion releases the account', async () => {
+  const credentialValidation = deferred();
+  const service = new AccountServiceDouble();
+  service.updateCredentials = async (email, password) => {
+    service.credentialUpdates.push({ email, password });
+    await credentialValidation.promise;
+    service.accountKey = 'synthetic-rekeyed-account';
+  };
+  const { device, registry } = createHarness({ service });
+  await device.onInit();
+
+  const settingsUpdate = device.onSettings({
+    oldSettings: device.getSettings(),
+    newSettings: {
+      ...device.getSettings(),
+      vasco_email: NEW_EMAIL,
+      vasco_password: NEW_PASSWORD,
+      poll_interval: '120',
+    },
+    changedKeys: ['vasco_email', 'vasco_password', 'poll_interval'],
+  });
+  await settle();
+  assert.equal(service.pollingStarts.length, 1);
+  assert.deepEqual(service.credentialUpdates, [{ email: NEW_EMAIL, password: NEW_PASSWORD }]);
+
+  credentialValidation.resolve();
+  assert.equal(await settingsUpdate, undefined);
+  assert.equal(service.pollingStarts.length, 2);
+  assert.equal(service.pollingStarts.at(-1).intervalSeconds, 120);
+
+  await device.onDeleted();
+  assert.deepEqual(registry.releases, ['synthetic-rekeyed-account']);
+});
+
+test('failed credential validation preserves the old account and polling schedule without leaking credentials', async () => {
+  const service = new AccountServiceDouble();
+  service.updateCredentials = async () => {
+    throw new Error(`${NEW_EMAIL}:${NEW_PASSWORD}`);
+  };
+  const { device, registry } = createHarness({ service });
+  await device.onInit();
+
+  await assert.rejects(
+    () => device.onSettings({
+      oldSettings: device.getSettings(),
+      newSettings: {
+        ...device.getSettings(),
+        vasco_email: NEW_EMAIL,
+        vasco_password: NEW_PASSWORD,
+        poll_interval: '120',
+      },
+      changedKeys: ['vasco_email', 'vasco_password', 'poll_interval'],
+    }),
+    (error) => {
+      assert.match(error.message, /credentials|settings/i);
+      assert.doesNotMatch(error.message, new RegExp(NEW_EMAIL));
+      assert.doesNotMatch(error.message, new RegExp(NEW_PASSWORD));
+      return true;
+    },
+  );
+  assert.equal(service.accountKey, 'synthetic-account-key');
+  assert.equal(service.pollingStarts.length, 1);
+
+  await device.onDeleted();
+  assert.deepEqual(registry.releases, ['synthetic-account-key']);
+  assert.equal(device.logged.flat().join(' ').includes(NEW_PASSWORD), false);
+});
+
+test('invalid local settings are rejected before credential validation or polling changes', async () => {
+  const { device, service } = createHarness();
+  await device.onInit();
+
+  await assert.rejects(
+    () => device.onSettings({
+      oldSettings: device.getSettings(),
+      newSettings: {
+        ...device.getSettings(),
+        vasco_email: NEW_EMAIL,
+        vasco_password: NEW_PASSWORD,
+        poll_interval: '31',
+      },
+      changedKeys: ['vasco_email', 'vasco_password', 'poll_interval'],
+    }),
+    /polling interval/i,
+  );
+  assert.deepEqual(service.credentialUpdates, []);
+  assert.equal(service.pollingStarts.length, 1);
+});
+
+test('an invalid stored mode duration is rejected even while schedule mode is selected', async () => {
+  const { device, service } = createHarness();
+  await device.onInit();
+
+  await assert.rejects(
+    () => device.onSettings({
+      oldSettings: device.getSettings(),
+      newSettings: {
+        ...device.getSettings(),
+        default_duration_type: 'schedule',
+        default_duration_minutes: 0,
+      },
+      changedKeys: ['default_duration_minutes'],
+    }),
+    /duration/i,
+  );
+  assert.deepEqual(service.credentialUpdates, []);
+  assert.equal(service.pollingStarts.length, 1);
+});
+
+test('devices sharing one account share one polling loop and both receive its state', async () => {
+  const service = new AccountServiceDouble();
+  const registry = new AccountRegistryDouble(service);
+  const first = new VascoDevice().configure();
+  const second = new VascoDevice().configure();
+  first.getAccountRegistry = () => registry;
+  second.getAccountRegistry = () => registry;
+
+  await first.onInit();
+  await second.onInit();
+  assert.equal(service.pollingStarts.length, 1);
+
+  const updated = structuredClone(fixture);
+  updated.deviceProperties[0].requestedLevel = 7;
+  await service.pollingStarts[0].onState(updated);
+
+  assert.equal(first.capabilities.get('vasco_mode'), 'guests');
+  assert.equal(second.capabilities.get('vasco_mode'), 'guests');
+  await first.onDeleted();
+  await second.onDeleted();
+  assert.deepEqual(registry.releases, ['synthetic-account-key', 'synthetic-account-key']);
+});
+
+test('Fireplace disable remains blocked until its cloud payload is verified', async () => {
+  const { device, service } = createHarness();
+  await device.onInit();
+
+  await assert.rejects(
+    () => device.setFireplace(false, 5),
+    /not supported/i,
+  );
+  assert.deepEqual(service.commands, []);
+});
+
+class FakeClock {
+  constructor(nowMs = NOW_MS) {
+    this.nowMs = nowMs;
+    this.nextId = 1;
+    this.timers = new Map();
+  }
+
+  now() {
+    return this.nowMs;
+  }
+
+  setTimeout(fn, delayMs) {
+    const id = this.nextId;
+    this.nextId += 1;
+    this.timers.set(id, { at: this.nowMs + delayMs, fn });
+    return id;
+  }
+
+  clearTimeout(id) {
+    this.timers.delete(id);
+  }
+
+  advance(delayMs) {
+    const target = this.nowMs + delayMs;
+    while (true) {
+      const due = [...this.timers.entries()]
+        .filter(([, timer]) => timer.at <= target)
+        .sort((left, right) => left[1].at - right[1].at || left[0] - right[0])[0];
+      if (!due) break;
+      const [id, timer] = due;
+      this.timers.delete(id);
+      this.nowMs = timer.at;
+      timer.fn();
+    }
+    this.nowMs = target;
+  }
+}
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
