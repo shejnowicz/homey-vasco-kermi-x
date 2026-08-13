@@ -20,6 +20,10 @@ const { MODES } = require('../../lib/vasco-modes');
 const DEFAULT_POLL_INTERVAL = 60;
 const DEFAULT_MODE_MINUTES = 60;
 const DEFAULT_FIREPLACE_MINUTES = 5;
+const SETTINGS_UNCHANGED_MESSAGE =
+  'Could not validate Vasco credentials. Settings were not changed.';
+const SETTINGS_RECOVERY_MESSAGE =
+  'Vasco credential recovery was incomplete. Re-enter the account credentials on all affected devices.';
 const POLL_INTERVALS = new Set([30, 60, 120, 300, 600]);
 const DURATION_TYPES = new Set(['schedule', 'permanent', 'minutes']);
 const MODE_BY_LEVEL = new Map(
@@ -286,7 +290,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     );
   }
 
-  async onSettings({ oldSettings, newSettings, changedKeys = [] }) {
+  async onSettings({ newSettings, changedKeys = [] }) {
     validateChangedSettings(newSettings, changedKeys);
     const service = this.accountService;
     if (!service || this.deleted) {
@@ -303,7 +307,6 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
           service,
           coordinator,
           editor: this,
-          oldSettings,
           newSettings,
         });
       }
@@ -370,7 +373,13 @@ function subscribeToPolling(service, device, intervalSeconds) {
       intervalSeconds: null,
       subscribers: new Map(),
       settingsChain: Promise.resolve(),
+      recoveryRequired: false,
     };
+    Object.defineProperty(coordinator, 'credentials', {
+      value: credentialsFromSettings(device.getSettings()),
+      writable: true,
+      enumerable: false,
+    });
     POLLING_COORDINATORS.set(service, coordinator);
   }
 
@@ -403,7 +412,7 @@ function unsubscribeFromPolling(service, device) {
 }
 
 function reschedulePolling(service, coordinator, { force = false } = {}) {
-  if (coordinator.subscribers.size === 0) return;
+  if (coordinator.subscribers.size === 0 || coordinator.recoveryRequired) return;
   const intervalSeconds = minimumPollingInterval(coordinator);
   if (!force && intervalSeconds === coordinator.intervalSeconds) return;
   coordinator.intervalSeconds = intervalSeconds;
@@ -457,17 +466,11 @@ async function replaceSharedCredentials({
   service,
   coordinator,
   editor,
-  oldSettings,
   newSettings,
 }) {
-  const previousCredentials = {
-    vasco_email: oldSettings?.vasco_email,
-    vasco_password: oldSettings?.vasco_password,
-  };
-  const nextCredentials = {
-    vasco_email: newSettings.vasco_email,
-    vasco_password: newSettings.vasco_password,
-  };
+  const previousCredentials = { ...coordinator.credentials };
+  const previousRecoveryRequired = coordinator.recoveryRequired;
+  const nextCredentials = credentialsFromSettings(newSettings);
   const updatedDevices = [];
   let credentialsReplaced = false;
 
@@ -477,6 +480,7 @@ async function replaceSharedCredentials({
       nextCredentials.vasco_password,
     );
     credentialsReplaced = true;
+    coordinator.credentials = nextCredentials;
     service.stopPolling();
     for (const device of coordinator.subscribers.keys()) {
       if (device === editor || device.deleted) continue;
@@ -488,6 +492,7 @@ async function replaceSharedCredentials({
       await device.setSettings(nextCredentials);
       updatedDevices.push({ device, before });
     }
+    coordinator.recoveryRequired = false;
   } catch {
     if (credentialsReplaced) {
       await rollbackAndResumePolling(
@@ -495,9 +500,10 @@ async function replaceSharedCredentials({
         coordinator,
         previousCredentials,
         updatedDevices,
+        previousRecoveryRequired,
       );
     }
-    throw new Error('Could not validate Vasco credentials. Settings were not changed.');
+    throw new Error(SETTINGS_UNCHANGED_MESSAGE);
   }
 
   return () => rollbackAndResumePolling(
@@ -505,6 +511,7 @@ async function replaceSharedCredentials({
     coordinator,
     previousCredentials,
     updatedDevices,
+    previousRecoveryRequired,
   );
 }
 
@@ -513,32 +520,83 @@ async function rollbackAndResumePolling(
   coordinator,
   previousCredentials,
   updatedDevices,
+  previousRecoveryRequired,
 ) {
-  await rollbackSharedCredentials(service, previousCredentials, updatedDevices);
+  const restored = await rollbackSharedCredentials(
+    service,
+    coordinator,
+    previousCredentials,
+    updatedDevices,
+  );
+  if (!restored) {
+    await stopForCredentialRecovery(service, coordinator);
+    throw new Error(SETTINGS_RECOVERY_MESSAGE);
+  }
+  coordinator.recoveryRequired = previousRecoveryRequired;
+  if (previousRecoveryRequired) {
+    await stopForCredentialRecovery(service, coordinator);
+    throw new Error(SETTINGS_RECOVERY_MESSAGE);
+  }
+
   try {
     reschedulePolling(service, coordinator, { force: true });
   } catch {
-    // Preserve the fixed settings error if polling cannot be resumed immediately.
+    await stopForCredentialRecovery(service, coordinator);
+    throw new Error(SETTINGS_RECOVERY_MESSAGE);
   }
 }
 
-async function rollbackSharedCredentials(service, previousCredentials, updatedDevices) {
+async function rollbackSharedCredentials(
+  service,
+  coordinator,
+  previousCredentials,
+  updatedDevices,
+) {
+  let settingsRestored = true;
   for (const { device, before } of [...updatedDevices].reverse()) {
     if (device.deleted) continue;
     try {
       await device.setSettings(before);
     } catch {
-      // Continue restoring the account even if Homey rejects a sibling rollback.
+      settingsRestored = false;
     }
   }
+
+  let serviceRestored = false;
   try {
     await service.updateCredentials(
       previousCredentials.vasco_email,
       previousCredentials.vasco_password,
     );
+    coordinator.credentials = previousCredentials;
+    serviceRestored = true;
   } catch {
-    // Preserve the fixed settings error without exposing credential details.
+    // The caller stops polling and surfaces a fixed recovery error.
   }
+  return settingsRestored && serviceRestored;
+}
+
+async function stopForCredentialRecovery(service, coordinator) {
+  coordinator.recoveryRequired = true;
+  service.stopPolling();
+  const error = new VascoAuthenticationError(
+    'Vasco credentials require recovery',
+  );
+  await Promise.all([...coordinator.subscribers.keys()].map(async (device) => {
+    if (device.deleted) return;
+    try {
+      await device.handleAvailability(false, { error });
+    } catch {
+      // Continue marking the other affected devices before surfacing recovery.
+    }
+  }));
+}
+
+function credentialsFromSettings(settings) {
+  return {
+    vasco_email: settings?.vasco_email,
+    vasco_password: settings?.vasco_password,
+  };
 }
 
 function minimumPollingInterval(coordinator) {

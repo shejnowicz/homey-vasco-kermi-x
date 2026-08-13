@@ -12,6 +12,8 @@ const EMAIL = 'device-owner@example.invalid';
 const PASSWORD = 'synthetic-device-password';
 const NEW_EMAIL = 'replacement-device-owner@example.invalid';
 const NEW_PASSWORD = 'synthetic-replacement-password';
+const SECOND_EMAIL = 'second-replacement-owner@example.invalid';
+const SECOND_PASSWORD = 'synthetic-second-replacement-password';
 const KITCHEN_ID = createHash('sha256')
   .update('synthetic-gateway-west\u0000synthetic-device-kitchen')
   .digest('hex');
@@ -632,6 +634,182 @@ test('failed shared settings persistence rolls credentials and sibling settings 
   assert.equal(service.accountKey, 'synthetic-account-key');
   assert.equal(second.getSettings().vasco_email, EMAIL);
   assert.equal(second.getSettings().vasco_password, PASSWORD);
+});
+
+test('a queued credential failure rolls back to the preceding committed replacement', async () => {
+  const firstValidationStarted = deferred();
+  const allowFirstValidation = deferred();
+  const service = new AccountServiceDouble();
+  service.updateCredentials = async (email, password) => {
+    service.credentialUpdates.push({ email, password });
+    if (service.credentialUpdates.length === 1) {
+      firstValidationStarted.resolve();
+      await allowFirstValidation.promise;
+    }
+  };
+  const registry = new AccountRegistryDouble(service);
+  const first = new VascoDevice().configure();
+  const second = new VascoDevice().configure();
+  first.getAccountRegistry = () => registry;
+  second.getAccountRegistry = () => registry;
+  await first.onInit();
+  await second.onInit();
+  const originalSetSettings = second.setSettings.bind(second);
+  second.setSettings = async (settings) => {
+    if (settings.vasco_email === SECOND_EMAIL) {
+      throw new Error('synthetic second persistence failure');
+    }
+    return originalSetSettings(settings);
+  };
+
+  const firstUpdate = first.onSettings({
+    oldSettings: first.getSettings(),
+    newSettings: {
+      ...first.getSettings(),
+      vasco_email: NEW_EMAIL,
+      vasco_password: NEW_PASSWORD,
+    },
+    changedKeys: ['vasco_email', 'vasco_password'],
+  });
+  await firstValidationStarted.promise;
+  const queuedUpdate = first.onSettings({
+    oldSettings: first.getSettings(),
+    newSettings: {
+      ...first.getSettings(),
+      vasco_email: SECOND_EMAIL,
+      vasco_password: SECOND_PASSWORD,
+    },
+    changedKeys: ['vasco_email', 'vasco_password'],
+  });
+  allowFirstValidation.resolve();
+
+  await firstUpdate;
+  await assert.rejects(() => queuedUpdate, /settings were not changed/i);
+  assert.deepEqual(service.credentialUpdates, [
+    { email: NEW_EMAIL, password: NEW_PASSWORD },
+    { email: SECOND_EMAIL, password: SECOND_PASSWORD },
+    { email: NEW_EMAIL, password: NEW_PASSWORD },
+  ]);
+  assert.equal(second.getSettings().vasco_email, NEW_EMAIL);
+  assert.equal(second.getSettings().vasco_password, NEW_PASSWORD);
+});
+
+test('failed service compensation stops polling and reports incomplete credential recovery', async () => {
+  const service = new AccountServiceDouble();
+  service.updateCredentials = async (email, password) => {
+    service.credentialUpdates.push({ email, password });
+    if (email === EMAIL) throw new Error('synthetic credential rollback failure');
+  };
+  const registry = new AccountRegistryDouble(service);
+  const first = new VascoDevice().configure();
+  const second = new VascoDevice().configure();
+  first.getAccountRegistry = () => registry;
+  second.getAccountRegistry = () => registry;
+  await first.onInit();
+  await second.onInit();
+  const originalSetSettings = second.setSettings.bind(second);
+  second.setSettings = async () => {
+    throw new Error('synthetic settings persistence failure');
+  };
+
+  await assert.rejects(
+    () => first.onSettings({
+      oldSettings: first.getSettings(),
+      newSettings: {
+        ...first.getSettings(),
+        vasco_email: NEW_EMAIL,
+        vasco_password: NEW_PASSWORD,
+      },
+      changedKeys: ['vasco_email', 'vasco_password'],
+    }),
+    (error) => {
+      assert.match(error.message, /recovery|re-enter|incomplete/i);
+      assert.doesNotMatch(error.message, /not changed/i);
+      assert.doesNotMatch(error.message, new RegExp(NEW_EMAIL));
+      assert.doesNotMatch(error.message, new RegExp(NEW_PASSWORD));
+      return true;
+    },
+  );
+
+  assert.equal(service.pollingStarts.length, 1);
+  assert.equal(first.availability.at(-1).available, false);
+  assert.equal(second.availability.at(-1).available, false);
+
+  await first.onSettings({
+    oldSettings: first.getSettings(),
+    newSettings: { ...first.getSettings(), poll_interval: '120' },
+    changedKeys: ['poll_interval'],
+  });
+  await second.onSettings({
+    oldSettings: second.getSettings(),
+    newSettings: { ...second.getSettings(), poll_interval: '120' },
+    changedKeys: ['poll_interval'],
+  });
+  assert.equal(service.pollingStarts.length, 1);
+
+  service.updateCredentials = async (email, password) => {
+    service.credentialUpdates.push({ email, password });
+  };
+  second.setSettings = originalSetSettings;
+  await first.onSettings({
+    oldSettings: first.getSettings(),
+    newSettings: {
+      ...first.getSettings(),
+      vasco_email: NEW_EMAIL,
+      vasco_password: NEW_PASSWORD,
+      poll_interval: '120',
+    },
+    changedKeys: ['vasco_email', 'vasco_password'],
+  });
+  assert.equal(service.pollingStarts.length, 2);
+  assert.equal(service.pollingStarts.at(-1).intervalSeconds, 120);
+});
+
+test('failed sibling compensation stops polling and reports incomplete credential recovery', async () => {
+  const service = new AccountServiceDouble();
+  const registry = new AccountRegistryDouble(service);
+  const first = new VascoDevice().configure();
+  const second = new VascoDevice().configure();
+  const third = new VascoDevice().configure();
+  first.getAccountRegistry = () => registry;
+  second.getAccountRegistry = () => registry;
+  third.getAccountRegistry = () => registry;
+  await first.onInit();
+  await second.onInit();
+  await third.onInit();
+  const originalSetSettings = second.setSettings.bind(second);
+  second.setSettings = async (settings) => {
+    if (settings.vasco_email === EMAIL) {
+      throw new Error('synthetic sibling rollback failure');
+    }
+    return originalSetSettings(settings);
+  };
+  third.setSettings = async () => {
+    throw new Error('synthetic settings persistence failure');
+  };
+
+  await assert.rejects(
+    () => first.onSettings({
+      oldSettings: first.getSettings(),
+      newSettings: {
+        ...first.getSettings(),
+        vasco_email: NEW_EMAIL,
+        vasco_password: NEW_PASSWORD,
+      },
+      changedKeys: ['vasco_email', 'vasco_password'],
+    }),
+    (error) => {
+      assert.match(error.message, /recovery|re-enter|incomplete/i);
+      assert.doesNotMatch(error.message, /not changed/i);
+      return true;
+    },
+  );
+
+  assert.equal(second.getSettings().vasco_email, NEW_EMAIL);
+  assert.equal(service.pollingStarts.length, 1);
+  assert.equal(first.availability.at(-1).available, false);
+  assert.equal(second.availability.at(-1).available, false);
+  assert.equal(third.availability.at(-1).available, false);
 });
 
 test('concurrent state applications are serialized in observation order', async () => {

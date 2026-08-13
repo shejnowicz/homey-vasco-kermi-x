@@ -108,3 +108,30 @@ The focused suite then passed 19/19. A further stale-poll race test failed
 Fireplace disable remains blocked without issuing a cloud write. The Aikido MCP
 server remains unavailable, so the required external security scan could not
 be run.
+
+## Fix round 2
+
+A fresh review found that a queued credential update retained the
+`oldSettings` snapshot from the time it was requested rather than the committed
+shared credentials at the time it executed. If update X succeeded and queued
+update Y later failed, Y could therefore compensate the service back to the
+original credentials instead of X. The same review found that failed service
+or sibling-setting compensation was swallowed, after which polling resumed and
+the caller was incorrectly told that settings had not changed.
+
+Three adversarial tests reproduced the stale-baseline case, failed service
+compensation, and failed sibling compensation. The focused RED run passed
+20/23 and failed those three assertions. Account coordinators now retain a
+non-enumerable committed credential baseline that is read only inside the
+serialized settings operation. Successful commits advance it; successful
+compensation restores it.
+
+Compensation now reports whether both the service and every active sibling were
+restored. An incomplete recovery stops polling, marks all affected devices
+unavailable with a redacted authentication message, and returns a truthful
+fixed error asking the user to re-enter credentials. Interval changes cannot
+restart polling while recovery is required; a subsequent successful shared
+credential replacement clears recovery and resumes polling at the current
+effective interval. The focused suite passed 23/23 and fresh verification
+passed the full suite at 84/84, `homey app build`, both `node --check`
+commands, and `git diff --check`. The Aikido MCP server remained unavailable.
