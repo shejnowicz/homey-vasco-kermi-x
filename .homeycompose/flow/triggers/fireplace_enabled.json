@@ -1,0 +1,5 @@
+{
+  "title": { "en": "Fireplace mode enabled", "pl": "Włączono tryb kominka" },
+  "titleFormatted": { "en": "Fireplace mode was enabled", "pl": "Włączono tryb kominka" },
+  "args": [{ "name": "device", "type": "device", "filter": "driver_id=vasco-kermi-x" }]
+}

@@ -1,0 +1,6 @@
+{
+  "title": { "en": "Operating mode changed", "pl": "Zmieniono tryb pracy" },
+  "titleFormatted": { "en": "Operating mode changed", "pl": "Zmieniono tryb pracy" },
+  "args": [{ "name": "device", "type": "device", "filter": "driver_id=vasco-kermi-x" }],
+  "tokens": [{ "name": "previous_mode", "type": "string", "title": { "en": "Previous mode", "pl": "Poprzedni tryb" } }, { "name": "new_mode", "type": "string", "title": { "en": "New mode", "pl": "Nowy tryb" } }]
+}

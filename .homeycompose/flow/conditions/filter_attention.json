@@ -1,0 +1,5 @@
+{
+  "title": { "en": "Filter attention", "pl": "Uwaga dotycząca filtra" },
+  "titleFormatted": { "en": "Filter !{{requires|doesn't require}} attention", "pl": "Filtr !{{wymaga|nie wymaga}} uwagi" },
+  "args": [{ "name": "device", "type": "device", "filter": "driver_id=vasco-kermi-x" }]
+}

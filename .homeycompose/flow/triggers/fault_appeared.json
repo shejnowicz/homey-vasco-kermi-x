@@ -1,0 +1,5 @@
+{
+  "title": { "en": "Fault appeared", "pl": "Pojawiła się usterka" },
+  "titleFormatted": { "en": "Fault appeared", "pl": "Pojawiła się usterka" },
+  "args": [{ "name": "device", "type": "device", "filter": "driver_id=vasco-kermi-x" }]
+}

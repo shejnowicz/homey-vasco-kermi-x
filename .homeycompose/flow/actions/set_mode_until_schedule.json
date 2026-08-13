@@ -1,0 +1,5 @@
+{
+  "title": { "en": "Set operating mode", "pl": "Ustaw tryb pracy" },
+  "titleFormatted": { "en": "Set operating mode to [[mode]] until the next schedule change", "pl": "Ustaw tryb pracy na [[mode]] do następnej zmiany harmonogramu" },
+  "args": [{ "name": "device", "type": "device", "filter": "driver_id=vasco-kermi-x" }, { "name": "mode", "type": "dropdown", "title": { "en": "Operating mode", "pl": "Tryb pracy" }, "values": [{ "id": "low", "title": { "en": "Low", "pl": "Niski" } }, { "id": "medium", "title": { "en": "Medium", "pl": "Średni" } }, { "id": "high", "title": { "en": "High", "pl": "Wysoki" } }, { "id": "auto", "title": { "en": "Auto", "pl": "Auto" } }, { "id": "holidays", "title": { "en": "Holidays", "pl": "Urlop" } }, { "id": "guests", "title": { "en": "Guests", "pl": "Goście" } }] }]
+}

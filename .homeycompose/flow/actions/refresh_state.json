@@ -1,0 +1,5 @@
+{
+  "title": { "en": "Refresh state", "pl": "Odśwież stan" },
+  "titleFormatted": { "en": "Refresh state", "pl": "Odśwież stan" },
+  "args": [{ "name": "device", "type": "device", "filter": "driver_id=vasco-kermi-x" }]
+}

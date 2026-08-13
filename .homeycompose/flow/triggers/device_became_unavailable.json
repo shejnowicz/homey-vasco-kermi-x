@@ -1,0 +1,5 @@
+{
+  "title": { "en": "Device became unavailable", "pl": "Urządzenie stało się niedostępne" },
+  "titleFormatted": { "en": "Device became unavailable", "pl": "Urządzenie stało się niedostępne" },
+  "args": [{ "name": "device", "type": "device", "filter": "driver_id=vasco-kermi-x" }]
+}
