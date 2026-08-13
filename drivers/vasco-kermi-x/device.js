@@ -80,8 +80,8 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       this.registerCapabilityListener('vasco_mode', mode => (
         this.setOperatingMode(mode, defaultModeDuration(this.getSettings()))
       ));
-      this.registerCapabilityListener('vasco_fireplace', enabled => (
-        this.setFireplace(enabled, defaultFireplaceMinutes(this.getSettings()))
+      this.registerCapabilityListener('button.enable_fireplace', () => (
+        this.setFireplace(true, defaultFireplaceMinutes(this.getSettings()))
       ));
       this.registerCapabilityListener('button.test_connection', () => this.testConnection());
 

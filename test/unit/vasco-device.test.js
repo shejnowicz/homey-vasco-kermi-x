@@ -207,7 +207,7 @@ test('device contract migration completes before account acquisition and listene
     'store:device_contract_version:1',
     'acquire',
     'listener:vasco_mode',
-    'listener:vasco_fireplace',
+    'listener:button.enable_fireplace',
     'listener:button.test_connection',
   ]);
 });
@@ -340,8 +340,8 @@ test('initialization acquires the shared account, registers controls, syncs befo
 
   assert.deepEqual(registry.acquisitions, [{ email: EMAIL, password: PASSWORD }]);
   assert.deepEqual([...device.capabilityListeners.keys()].sort(), [
+    'button.enable_fireplace',
     'button.test_connection',
-    'vasco_fireplace',
     'vasco_mode',
   ]);
   assert.equal(service.reads.length, 1);
@@ -444,13 +444,15 @@ function withoutRequestedLevel(device) {
   return clone;
 }
 
-test('the Fireplace switch sends the configured enable duration and applies confirmation immediately', async () => {
+test('Fireplace button sends the configured enable duration and applies confirmation immediately', async () => {
   const { device, service } = createHarness({
     settings: { default_fireplace_minutes: 45 },
   });
   await device.onInit();
 
-  await device.capabilityListeners.get('vasco_fireplace')(true);
+  assert.equal(device.capabilityListeners.has('vasco_fireplace'), false);
+  const press = device.capabilityListeners.get('button.enable_fireplace');
+  await press();
 
   assert.deepEqual(service.commands[0].command, {
     ...fixture.deviceProperties[0],
