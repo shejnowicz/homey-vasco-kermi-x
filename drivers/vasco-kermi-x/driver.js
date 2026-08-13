@@ -11,6 +11,7 @@ const {
 
 const LOGIN_ERROR = 'Could not sign in to Vasco. Check your credentials and try again.';
 const LIST_ERROR = 'Could not list Vasco ventilation units. Please try again.';
+const DEFAULT_PRODUCT = 'Vasco ventilation unit';
 
 class CompatibilityError extends Error {}
 
@@ -24,6 +25,7 @@ module.exports = class VascoKermiXDriver extends Homey.Driver {
   onPair(session) {
     const registry = this.createPairRegistry();
     let pairState = null;
+    let loginInProgress = false;
 
     const clearPairState = () => {
       if (pairState === null) return;
@@ -41,6 +43,9 @@ module.exports = class VascoKermiXDriver extends Homey.Driver {
     };
 
     session.setHandler('login', async (credentials) => {
+      if (loginInProgress) {
+        throw new Error(LOGIN_ERROR);
+      }
       clearPairState();
 
       const email = normalizeEmail(credentials?.email);
@@ -49,6 +54,7 @@ module.exports = class VascoKermiXDriver extends Homey.Driver {
         throw new Error(LOGIN_ERROR);
       }
 
+      loginInProgress = true;
       let service;
       try {
         service = registry.acquire({ email, password });
@@ -69,6 +75,8 @@ module.exports = class VascoKermiXDriver extends Homey.Driver {
           }
         }
         throw new Error(LOGIN_ERROR);
+      } finally {
+        loginInProgress = false;
       }
     });
 
@@ -83,7 +91,7 @@ module.exports = class VascoKermiXDriver extends Homey.Driver {
         if (candidates.length === 0) {
           const malformed = findMalformedVentilationCandidate(state.configuration);
           if (malformed) {
-            throw compatibilityError(malformed);
+            throw compatibilityError(malformed, state);
           }
         }
 
@@ -96,13 +104,13 @@ module.exports = class VascoKermiXDriver extends Homey.Driver {
         return candidates
           .filter(candidate => !pairedIdentities.has(candidate.identity))
           .map(candidate => ({
-            name: safeDisplayName(candidate),
+            name: safeDisplayName(candidate, state),
             data: { id: candidate.identity },
             settings: {
               vasco_email: state.email,
               vasco_password: state.password,
             },
-            store: { product: safeProduct(candidate.raw) },
+            store: { product: safeProduct(candidate.raw, state) },
           }));
       } catch (error) {
         if (error instanceof CompatibilityError) throw error;
@@ -134,31 +142,45 @@ function findMalformedVentilationCandidate(configuration) {
   });
 }
 
-function compatibilityError(raw) {
-  const product = safeProduct(raw);
+function compatibilityError(raw, credentials) {
+  const product = safeProduct(raw, credentials);
   return new CompatibilityError(
     `${product} is not yet compatible. Please report this model through the project support page.`,
   );
 }
 
-function safeDisplayName(candidate) {
+function safeDisplayName(candidate, credentials) {
   const name = typeof candidate.name === 'string' ? candidate.name.trim() : '';
-  if (name.length > 0
-    && !name.includes(candidate.bridgeRef)
-    && !name.includes(candidate.deviceRef)) {
+  if (name.length > 0 && !containsPrivateValue(name, candidate.raw, credentials)) {
     return name;
   }
-  return `${safeProduct(candidate.raw)} ventilation unit`;
+  const product = safeProduct(candidate.raw, credentials);
+  return product === DEFAULT_PRODUCT ? product : `${product} ventilation unit`;
 }
 
-function safeProduct(raw) {
+function safeProduct(raw, credentials) {
   const product = typeof raw?.product === 'string' ? raw.product.trim() : '';
-  if (product.length === 0
-    || (typeof raw?.bridgeId === 'string' && product.includes(raw.bridgeId))
-    || (typeof raw?.deviceId === 'string' && product.includes(raw.deviceId))) {
-    return 'Vasco ventilation unit';
+  if (product.length === 0 || containsPrivateValue(product, raw, credentials)) {
+    return DEFAULT_PRODUCT;
   }
   return product;
+}
+
+function containsPrivateValue(value, raw, credentials) {
+  const lowerValue = value.toLowerCase();
+  const caseInsensitiveValues = [raw?.bridgeId, raw?.deviceId, credentials?.email];
+  if (caseInsensitiveValues.some(privateValue => (
+    typeof privateValue === 'string'
+      && privateValue.length > 0
+      && lowerValue.includes(privateValue.toLowerCase())
+  ))) {
+    return true;
+  }
+
+  const password = credentials?.password;
+  return typeof password === 'string'
+    && password.length > 0
+    && value.includes(password);
 }
 
 function normalizeEmail(email) {

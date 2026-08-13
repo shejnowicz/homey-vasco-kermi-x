@@ -55,18 +55,18 @@ function loadDriver() {
   }
 }
 
-function createHarness({ configuration = fixture, pairedIds = [] } = {}) {
+function createHarness({ configuration = fixture, pairedIds = [], registry } = {}) {
   const Driver = loadDriver();
   const driver = new Driver();
-  const registry = new FakeAccountRegistry(configuration);
-  driver.createPairRegistry = () => registry;
+  const pairRegistry = registry ?? new FakeAccountRegistry(configuration);
+  driver.createPairRegistry = () => pairRegistry;
   driver.getDevices = () => pairedIds.map(id => ({
     getData: () => ({ id }),
   }));
   const session = new FakePairSession();
 
   driver.onPair(session);
-  return { driver, registry, session };
+  return { driver, registry: pairRegistry, session };
 }
 
 class FakeAccountRegistry {
@@ -172,6 +172,39 @@ test('raw identifiers are replaced in display names', async () => {
   assert.equal(device.name, 'Vasco X500 ventilation unit');
 });
 
+test('credentials embedded anywhere in remote names and products never leave protected settings', async () => {
+  const placements = [
+    secret => `${secret} public model`,
+    secret => `public ${secret} model`,
+    secret => `public model ${secret}`,
+  ];
+  const deviceProperties = placements.map((place, index) => ({
+    ...structuredClone(fixture.deviceProperties[0]),
+    bridgeId: `${RAW_BRIDGE_ID}-${index}`,
+    deviceId: `${RAW_DEVICE_ID}-${index}`,
+    name: `${place(EMAIL)} ${place(PASSWORD)}`,
+    product: `${place(PASSWORD)} ${place(EMAIL)}`,
+  }));
+  const { session } = createHarness({ configuration: { deviceProperties } });
+
+  await session.emit('login', { email: EMAIL, password: PASSWORD });
+  const devices = await session.emit('list_devices');
+
+  assert.equal(devices.length, 3);
+  for (const device of devices) {
+    assert.equal(device.name, 'Vasco ventilation unit');
+    assert.deepEqual(device.store, { product: 'Vasco ventilation unit' });
+    assert.equal(device.settings.vasco_email, EMAIL);
+    assert.equal(device.settings.vasco_password, PASSWORD);
+    for (const output of [device.name, JSON.stringify(device.store)]) {
+      assert.equal(output.includes(EMAIL), false);
+      assert.equal(output.includes(PASSWORD), false);
+      assert.equal(output.includes(RAW_BRIDGE_ID), false);
+      assert.equal(output.includes(RAW_DEVICE_ID), false);
+    }
+  }
+});
+
 test('malformed ventilation candidates produce a compatibility error without private references', async () => {
   const malformed = fixture.deviceProperties[3];
   const { registry, session } = createHarness({
@@ -192,6 +225,70 @@ test('malformed ventilation candidates produce a compatibility error without pri
     },
   );
   assert.equal(registry.released, true);
+});
+
+test('malformed compatibility errors redact credentials embedded throughout the product', async () => {
+  const malformed = {
+    ...structuredClone(fixture.deviceProperties[3]),
+    product: `${EMAIL} model ${PASSWORD} suffix ${EMAIL}`,
+  };
+  const { session } = createHarness({
+    configuration: { deviceProperties: [malformed] },
+  });
+
+  await session.emit('login', { email: EMAIL, password: PASSWORD });
+  await assert.rejects(
+    session.emit('list_devices'),
+    (error) => {
+      assert.match(error.message, /compatib|support|report/i);
+      for (const privateValue of [EMAIL, PASSWORD, malformed.bridgeId, malformed.deviceId]) {
+        assert.equal(error.message.includes(privateValue), false);
+      }
+      return true;
+    },
+  );
+});
+
+test('a second login is rejected while the first is pending and the acquired reference is released', async () => {
+  const registry = new DeferredAccountRegistry();
+  const { session } = createHarness({ registry });
+
+  const firstLogin = session.emit('login', { email: EMAIL, password: PASSWORD });
+  const secondRejected = assert.rejects(
+    session.emit('login', {
+      email: 'overlap@example.test',
+      password: 'overlap-private-password',
+    }),
+    (error) => {
+      assert.match(error.message, /sign in|credentials/i);
+      assert.doesNotMatch(error.message, /overlap@example\.test|overlap-private-password/);
+      return true;
+    },
+  );
+  await Promise.resolve();
+  assert.equal(registry.acquisitions.length, 1);
+  await secondRejected;
+
+  registry.acquisitions[0].read.resolve({
+    deviceProperties: fixture.deviceProperties.slice(0, 1),
+  });
+  assert.equal(await firstLogin, true);
+  await session.emit('list_devices');
+
+  assert.equal(registry.active.size, 0);
+  assert.equal(registry.containsCredentials(), false);
+});
+
+test('a failed deferred login releases its registry reference and credentials', async () => {
+  const registry = new DeferredAccountRegistry();
+  const { session } = createHarness({ registry });
+
+  const login = session.emit('login', { email: EMAIL, password: PASSWORD });
+  registry.acquisitions[0].read.reject(new Error(`remote:${EMAIL}:${PASSWORD}`));
+
+  await assert.rejects(login, /sign in|credentials/i);
+  assert.equal(registry.active.size, 0);
+  assert.equal(registry.containsCredentials(), false);
 });
 
 test('Homey pairing uses a custom login followed by list and add templates', () => {
@@ -278,4 +375,43 @@ function fakeElement({ value = '' } = {}) {
       this.listeners[name] = handler;
     },
   };
+}
+
+class DeferredAccountRegistry {
+  constructor() {
+    this.acquisitions = [];
+    this.active = new Map();
+  }
+
+  acquire(credentials) {
+    const accountKey = `deferred-account-${this.acquisitions.length}`;
+    const read = deferred();
+    const acquisition = { accountKey, credentials, read };
+    const service = {
+      accountKey,
+      readConfiguration: () => read.promise,
+    };
+    this.acquisitions.push(acquisition);
+    this.active.set(accountKey, acquisition);
+    return service;
+  }
+
+  release(accountKey) {
+    return this.active.delete(accountKey);
+  }
+
+  containsCredentials() {
+    const serialized = JSON.stringify([...this.active.values()]);
+    return serialized.includes(EMAIL) || serialized.includes(PASSWORD);
+  }
+}
+
+function deferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
 }

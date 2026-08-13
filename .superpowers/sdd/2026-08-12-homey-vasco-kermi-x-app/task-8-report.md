@@ -67,3 +67,27 @@ this environment, so no Aikido SAST result could be produced; the repository's
 secret-safety suite, pairing redaction tests, full test suite, and direct diff
 review passed. An independent reviewer agent could not be started because the
 parent session had reached its agent concurrency limit.
+
+## Fix round 1/5 — metadata redaction and overlapping login ownership
+
+- Security RED: adversarial fixtures placed the submitted email and password
+  at the beginning, middle, and end of remote device names and products. The
+  focused suite exposed both credentials in descriptor names/stores and in a
+  malformed-device compatibility error.
+- Concurrency RED: two deferred login calls acquired two registry references
+  before either completed, proving that completion order could overwrite
+  `pairState` and leave an earlier or later service retained. The focused suite
+  failed 3/11 tests across these findings.
+- Security GREEN: one private-value boundary now rejects an entire remote name
+  or product when it contains the session email (case-insensitive), password,
+  bridge ID, or device ID. Descriptor names/stores and compatibility errors use
+  only the safe fallback; credentials remain unchanged only in protected
+  settings.
+- Concurrency GREEN: a pair-session-local in-flight flag rejects a second login
+  with the fixed redacted login error before registry acquisition. The flag is
+  reset in `finally`, and deferred tests verify that both successful list
+  cleanup and failed login validation leave zero active registry references or
+  credentials.
+- Verification: `node --test test/unit/vasco-driver.test.js` passed 11/11,
+  `npm test` passed 61/61, `homey app build` succeeded, and `git diff --check`
+  plus `node --check drivers/vasco-kermi-x/driver.js` passed.
