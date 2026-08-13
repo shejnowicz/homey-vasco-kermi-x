@@ -50,6 +50,8 @@ class HomeyDeviceDouble {
     this.clock = clock;
     this.homey = {
       app,
+      clock: { getTimezone: () => 'Europe/Warsaw' },
+      i18n: { getLanguage: () => 'pl' },
       notifications: { createNotification: async () => undefined },
       setTimeout: clock.setTimeout.bind(clock),
       clearTimeout: clock.clearTimeout.bind(clock),
@@ -749,6 +751,18 @@ test('control duration synchronization maps all states and preserves the last va
     manualSettingActiveTill: NOW_MS,
   }, { initial: false });
   assert.equal(device.getCapabilityValue('vasco_control_duration'), 'timed');
+});
+
+test('timed override end is formatted in the Homey language and timezone', async () => {
+  const { device } = createHarness();
+
+  await device.applyState({
+    mode: 2,
+    controlMode: 'schedule',
+    manualSettingActiveTill: Date.UTC(2026, 7, 13, 13, 37, 35, 958),
+  }, { initial: true });
+
+  assert.equal(device.getCapabilityValue('vasco_override_end'), '13.08.2026, 15:37');
 });
 
 test('mode number synchronization writes each supported requested operating mode', async () => {

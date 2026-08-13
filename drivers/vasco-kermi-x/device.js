@@ -67,7 +67,11 @@ const CAPABILITIES = Object.freeze([
   ['vasco_control_duration', (state, device) => (
     controlDurationValue(state, device.getNow())
   )],
-  ['vasco_override_end', state => overrideEndValue(state.manualSettingActiveTill)],
+  ['vasco_override_end', (state, device) => overrideEndValue(
+    state.manualSettingActiveTill,
+    device.homey?.i18n?.getLanguage?.(),
+    device.homey?.clock?.getTimezone?.(),
+  )],
   ['vasco_fireplace', state => flagValue(state.fireplaceModeStatus)],
   ['alarm_filter', state => flagValue(state.filterDirty)],
   ['alarm_generic', state => flagValue(state.faultStatus)],
@@ -1088,14 +1092,23 @@ function rfAlarmValue(value) {
   return value === null || value === undefined ? null : value !== 0;
 }
 
-function overrideEndValue(value) {
+function overrideEndValue(value, locale = 'en', timeZone = 'UTC') {
   if (value === null || value === undefined) return null;
   if (value === 0) return 'schedule';
   if (value === -1) return 'permanent';
   if (!Number.isFinite(value)) return null;
 
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  if (Number.isNaN(date.getTime())) return null;
+  try {
+    return new Intl.DateTimeFormat(locale, {
+      dateStyle: 'short',
+      timeStyle: 'short',
+      timeZone,
+    }).format(date);
+  } catch {
+    return date.toISOString();
+  }
 }
 
 function availabilityMessage(error) {
