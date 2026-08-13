@@ -1,1 +1,1 @@
-Steruj centralami Vasco i Kermi serii X z Homey przez chmurę producenta. Wybierz czas trybu kominka w selektorze urządzenia; Homey pokazuje dokładny pozostały czas tylko dla własnych sesji, a Zatrzymaj przywraca poprzedni tryb wentylacji dla sesji Homey.
+Połącz wentylację Vasco i Kermi serii D, T i X z rytmem domu przez chmurę producenta. Sprawdzaj odczyty i stan systemu, wybieraj tryby pracy oraz twórz Flow dla harmonogramów i czasowych zmian. Opracowano i przetestowano z Vasco X500; inne modele wymagają weryfikacji społeczności.

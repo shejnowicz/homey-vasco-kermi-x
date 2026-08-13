@@ -9,20 +9,37 @@ function read(filename) {
   return readFileSync(join(root, filename), 'utf8');
 }
 
-test('English Store copy explains the Fireplace picker, known remaining time, and safe restoration', () => {
-  const description = read('README.txt');
+function readJson(filename) {
+  return JSON.parse(read(filename));
+}
 
-  assert.match(description, /Fireplace duration.*device picker/i);
-  assert.match(description, /Homey shows exact remaining time only for sessions it starts/i);
-  assert.match(description, /Stop restores the prior ventilation mode.*Homey/i);
-  assert.doesNotMatch(description, /(?:disable command|disable Fireplace|private endpoint|reverse.engineer)/i);
+test('Homey Store identity uses the D/T/X community product name', () => {
+  const app = readJson('.homeycompose/app.json');
+
+  assert.deepEqual(app.name, {
+    en: 'Vasco/Kermi Ventilation',
+    pl: 'Wentylacja Vasco/Kermi',
+  });
+  assert.deepEqual(app.description, {
+    en: 'Comfortable ventilation for every Homey routine',
+    pl: 'Komfortowa wentylacja dopasowana do rytmu domu',
+  });
+  assert.equal(app.version, '0.1.0');
 });
 
-test('Polish Store copy explains the Fireplace picker, known remaining time, and safe restoration', () => {
-  const description = read('README.pl.txt');
+for (const [filename, languagePattern] of [
+  ['README.txt', /developed and tested with Vasco X500/i],
+  ['README.pl.txt', /opracowano i przetestowano z Vasco X500/i],
+]) {
+  test(`${filename} states the verified model and community scope`, () => {
+    const description = read(filename);
 
-  assert.match(description, /czas trybu kominka.*selektorze urządzenia/i);
-  assert.match(description, /dokładny pozostały czas.*sesji.*Homey/i);
-  assert.match(description, /Zatrzymaj przywraca poprzedni tryb wentylacji.*Homey/i);
-  assert.doesNotMatch(description, /(?:polecenie wyłączenia|wyłącz.*tryb kominka|prywatn.*endpoint|inżynieri.*wsteczn)/i);
-});
+    assert.match(description, /D, T (?:and|i) X/i);
+    assert.match(description, languagePattern);
+    assert.match(description, /community verification|weryfikacji społeczności/i);
+    assert.doesNotMatch(
+      description,
+      /remaining time|pozostały czas|restores? the prior|przywraca poprzedni|local session|lokaln.*sesj/i,
+    );
+  });
+}

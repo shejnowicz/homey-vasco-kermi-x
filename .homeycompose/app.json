@@ -7,12 +7,12 @@
   "platforms": ["local"],
   "brandColor": "#254F5D",
   "name": {
-    "en": "Vasco/Kermi X Series",
-    "pl": "Vasco/Kermi seria X"
+    "en": "Vasco/Kermi Ventilation",
+    "pl": "Wentylacja Vasco/Kermi"
   },
   "description": {
-    "en": "Control Vasco and Kermi X Series ventilation units",
-    "pl": "Sterowanie centralami wentylacyjnymi Vasco i Kermi serii X"
+    "en": "Comfortable ventilation for every Homey routine",
+    "pl": "Komfortowa wentylacja dopasowana do rytmu domu"
   },
   "author": {
     "name": "Seweryn Hejnowicz"

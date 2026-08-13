@@ -93,6 +93,8 @@ test('store descriptions are plain text and packaging excludes development mater
     assert.doesNotMatch(description, /\[[^\]]+\]\([^)]+\)/, `${filename} must not contain links`);
     assert.ok(description.trim().length <= 300, `${filename} must remain concise`);
     assert.doesNotMatch(description, /\b(?:supports|obsługuje)\b/i, `${filename} must be neutral prose`);
+    assert.doesNotMatch(description, /\b(?:adds support|integrates|control devices)\b/i);
+    assert.doesNotMatch(description, /\b(?:dodaje obsługę|integruje|steruj urządzeniami)\b/i);
     assert.ok((description.match(/,/g) || []).length <= 2, `${filename} must not read as a feature list`);
   }
 
