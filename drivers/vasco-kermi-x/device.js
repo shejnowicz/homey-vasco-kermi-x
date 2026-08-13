@@ -18,6 +18,11 @@ const { MODES } = require('../../lib/vasco-modes');
 const DEFAULT_POLL_INTERVAL = 60;
 const DEFAULT_MODE_MINUTES = 60;
 const DEFAULT_FIREPLACE_MINUTES = 5;
+const DEVICE_CONTRACT_VERSION = 1;
+const DEVICE_CONTRACT_CAPABILITIES = [
+  'button.enable_fireplace',
+  'measure_vasco_mode',
+];
 const SETTINGS_UNCHANGED_MESSAGE =
   'Could not validate Vasco credentials. Settings were not changed.';
 const SETTINGS_RECOVERY_MESSAGE =
@@ -57,6 +62,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     }
 
     this.accountRegistry = this.getAccountRegistry();
+    await this.ensureDeviceContract();
     const settings = this.getSettings();
     const intervalSeconds = pollInterval(settings.poll_interval);
     this.accountService = null;
@@ -91,6 +97,20 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       await this.cleanupAccountReference();
       throw error;
     }
+  }
+
+  async ensureDeviceContract() {
+    for (const capability of DEVICE_CONTRACT_CAPABILITIES) {
+      if (!this.hasCapability(capability)) await this.addCapability(capability);
+    }
+
+    const version = this.getStoreValue('device_contract_version') ?? 0;
+    if (version >= DEVICE_CONTRACT_VERSION) return;
+
+    if (this.getSettings().default_duration_type === 'permanent') {
+      await this.setSettings({ default_duration_type: 'schedule' });
+    }
+    await this.setStoreValue('device_contract_version', DEVICE_CONTRACT_VERSION);
   }
 
   getAccountRegistry() {

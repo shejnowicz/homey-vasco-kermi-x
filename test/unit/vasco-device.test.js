@@ -32,10 +32,15 @@ class HomeyDeviceDouble {
     };
     this.data = data;
     this.capabilities = new Map();
+    this.availableCapabilities = new Set();
+    this.capabilityAdds = [];
+    this.capabilityRemovals = [];
     this.capabilityWrites = [];
     this.capabilityListeners = new Map();
     this.availability = [];
     this.settingsWrites = [];
+    this.store = {};
+    this.storeWrites = [];
     this.logged = [];
     this.homey = {
       app,
@@ -55,6 +60,29 @@ class HomeyDeviceDouble {
   async setSettings(settings) {
     this.settingsWrites.push({ ...settings });
     Object.assign(this.settings, settings);
+  }
+
+  hasCapability(capability) {
+    return this.availableCapabilities.has(capability);
+  }
+
+  async addCapability(capability) {
+    this.capabilityAdds.push(capability);
+    this.availableCapabilities.add(capability);
+  }
+
+  async removeCapability(capability) {
+    this.capabilityRemovals.push(capability);
+    this.availableCapabilities.delete(capability);
+  }
+
+  getStoreValue(key) {
+    return this.store[key];
+  }
+
+  async setStoreValue(key, value) {
+    this.storeWrites.push({ key, value });
+    this.store[key] = value;
   }
 
   registerCapabilityListener(capability, listener) {
@@ -106,6 +134,83 @@ function loadDeviceClass() {
 }
 
 const VascoDevice = loadDeviceClass();
+
+test('device contract migration adds the missing controls and changes the pre-release duration default', async () => {
+  const { device } = createHarness({
+    settings: { default_duration_type: 'permanent' },
+  });
+
+  await device.ensureDeviceContract();
+
+  assert.deepEqual(device.capabilityAdds, [
+    'button.enable_fireplace',
+    'measure_vasco_mode',
+  ]);
+  assert.deepEqual(device.settingsWrites, [{ default_duration_type: 'schedule' }]);
+  assert.equal(device.store.device_contract_version, 1);
+});
+
+test('device contract migration is idempotent after version one', async () => {
+  const { device } = createHarness({
+    settings: { default_duration_type: 'permanent' },
+  });
+  device.store.device_contract_version = 1;
+  device.availableCapabilities.add('button.enable_fireplace');
+  device.availableCapabilities.add('measure_vasco_mode');
+
+  await device.ensureDeviceContract();
+
+  assert.deepEqual(device.capabilityAdds, []);
+  assert.deepEqual(device.settingsWrites, []);
+  assert.deepEqual(device.storeWrites, []);
+  assert.equal(device.getSettings().default_duration_type, 'permanent');
+});
+
+test('device contract migration completes before account acquisition and listener registration', async () => {
+  const { device, registry } = createHarness({
+    settings: { default_duration_type: 'permanent' },
+  });
+  const operations = [];
+  const addCapability = device.addCapability.bind(device);
+  const setSettings = device.setSettings.bind(device);
+  const setStoreValue = device.setStoreValue.bind(device);
+  const registerCapabilityListener = device.registerCapabilityListener.bind(device);
+  const acquire = registry.acquire.bind(registry);
+
+  device.addCapability = async (capability) => {
+    operations.push(`add:${capability}`);
+    await addCapability(capability);
+  };
+  device.setSettings = async (settings) => {
+    operations.push('settings');
+    await setSettings(settings);
+  };
+  device.setStoreValue = async (key, value) => {
+    operations.push(`store:${key}:${value}`);
+    await setStoreValue(key, value);
+  };
+  registry.acquire = (credentials) => {
+    operations.push('acquire');
+    return acquire(credentials);
+  };
+  device.registerCapabilityListener = (capability, listener) => {
+    operations.push(`listener:${capability}`);
+    registerCapabilityListener(capability, listener);
+  };
+
+  await device.onInit();
+
+  assert.deepEqual(operations, [
+    'add:button.enable_fireplace',
+    'add:measure_vasco_mode',
+    'settings',
+    'store:device_contract_version:1',
+    'acquire',
+    'listener:vasco_mode',
+    'listener:vasco_fireplace',
+    'listener:button.test_connection',
+  ]);
+});
 
 class AccountServiceDouble {
   constructor(configuration = fixture) {
