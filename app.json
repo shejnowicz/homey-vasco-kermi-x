@@ -646,8 +646,8 @@
   "drivers": [
     {
       "name": {
-        "en": "Vasco/Kermi X Series Ventilation Unit",
-        "pl": "Centrala wentylacyjna Vasco/Kermi serii X"
+        "en": "Vasco/Kermi D / T / X Ventilation Unit",
+        "pl": "Centrala wentylacyjna Vasco/Kermi D / T / X"
       },
       "class": "fan",
       "connectivity": [
@@ -660,10 +660,7 @@
       },
       "pair": [
         {
-          "id": "login",
-          "navigation": {
-            "next": "list_devices"
-          }
+          "id": "login"
         },
         {
           "id": "list_devices",

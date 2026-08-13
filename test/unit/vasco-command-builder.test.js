@@ -14,6 +14,8 @@ const rawDevice = {
   deviceId: 'synthetic-device',
   product: 'Vasco X500',
   requestedLevel: 2,
+  nextParameter: 'requestedLevel',
+  nextValue: 2,
   controlMode: 'manual',
   manualSettingActiveTill: 1_700_000_000_000,
   fireplaceModeStatus: 0,
@@ -36,7 +38,8 @@ test('buildModeCommand preserves the raw object and changes only schedule comman
   assert.notStrictEqual(command.unknownCloudField, rawDevice.unknownCloudField);
   assert.deepEqual(command, {
     ...original,
-    requestedLevel: 3,
+    nextParameter: 'requestedLevel',
+    nextValue: 3,
     controlMode: 'schedule',
     manualSettingActiveTill: 0,
   });
@@ -61,7 +64,8 @@ test('buildModeCommand encodes every supported mode as a permanent command', () 
 
     assert.deepEqual(command, {
       ...rawDevice,
-      requestedLevel,
+      nextParameter: 'requestedLevel',
+      nextValue: requestedLevel,
       manualSettingActiveTill: -1,
     });
   }
@@ -76,7 +80,8 @@ test('buildModeCommand uses literal millisecond duration math for a timed manual
 
   assert.deepEqual(command, {
     ...rawDevice,
-    requestedLevel: 4,
+    nextParameter: 'requestedLevel',
+    nextValue: 4,
     controlMode: 'manual',
     manualSettingActiveTill: 1_700_001_800_000,
   });

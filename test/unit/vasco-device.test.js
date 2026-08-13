@@ -129,8 +129,8 @@ class AccountServiceDouble {
     const command = build(raw);
     this.commands.push({ identity, command });
     const state = {
-      mode: command.requestedLevel,
-      requestedMode: command.requestedLevel,
+      mode: command.nextValue,
+      requestedMode: command.nextValue,
       controlMode: command.controlMode,
       manualSettingActiveTill: command.manualSettingActiveTill,
       fanSpeedInlet: 41,
@@ -141,7 +141,7 @@ class AccountServiceDouble {
       filterDirty: 0,
       defrost: 0,
       faultStatus: 0,
-      rfCommunicationStatus: 1,
+      rfCommunicationStatus: 0,
       fireplaceModeStatus: command.fireplaceModeStatus,
       fireplaceModeTime: command.fireplaceModeTime,
     };
@@ -266,7 +266,7 @@ test('applyState writes only changed non-null capabilities and emits post-initia
     filterDirty: 0,
     faultStatus: 1,
     defrost: 0,
-    rfCommunicationStatus: 1,
+    rfCommunicationStatus: 0,
   }, { initial: true });
   device.capabilityWrites.length = 0;
 
@@ -283,7 +283,7 @@ test('applyState writes only changed non-null capabilities and emits post-initia
     filterDirty: 1,
     faultStatus: 0,
     defrost: 0,
-    rfCommunicationStatus: 1,
+    rfCommunicationStatus: 0,
   }, { initial: false });
 
   assert.deepEqual(device.capabilityWrites, [
@@ -298,6 +298,16 @@ test('applyState writes only changed non-null capabilities and emits post-initia
     { event: 'filter_warning_appeared', tokens: {} },
     { event: 'fault_cleared', tokens: {} },
   ]);
+});
+
+test('RF status zero is healthy and a non-zero status raises the alarm', async () => {
+  const { device } = createHarness();
+
+  await device.applyState({ rfCommunicationStatus: 0 }, { initial: true });
+  assert.equal(device.capabilities.get('alarm_rf'), false);
+
+  await device.applyState({ rfCommunicationStatus: 1 }, { initial: false });
+  assert.equal(device.capabilities.get('alarm_rf'), true);
 });
 
 test('the mode picker uses the configured default duration and applies confirmed state immediately', async () => {
@@ -315,7 +325,8 @@ test('the mode picker uses the configured default duration and applies confirmed
   assert.equal(service.commands[0].identity, KITCHEN_ID);
   assert.deepEqual(service.commands[0].command, {
     ...fixture.deviceProperties[0],
-    requestedLevel: 4,
+    nextParameter: 'requestedLevel',
+    nextValue: 4,
     controlMode: 'manual',
     manualSettingActiveTill: NOW_MS + (30 * 60_000),
   });

@@ -167,7 +167,7 @@ test('maps known state properties and represents absent optional temperatures as
     filterDirty: 1,
     defrost: 0,
     faultStatus: 0,
-    rfCommunicationStatus: 1,
+    rfCommunicationStatus: 0,
     fireplaceModeStatus: 1,
     fireplaceModeTime: 20,
   });

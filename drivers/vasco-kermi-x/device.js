@@ -665,7 +665,7 @@ function flagValue(value) {
 }
 
 function rfAlarmValue(value) {
-  return value === null || value === undefined ? null : value !== 1;
+  return value === null || value === undefined ? null : value !== 0;
 }
 
 function overrideEndValue(value) {
