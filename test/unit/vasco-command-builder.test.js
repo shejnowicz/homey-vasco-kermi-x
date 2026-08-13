@@ -52,7 +52,7 @@ test('buildModeCommand encodes every supported mode as a permanent command', () 
     guests: 7,
   };
 
-  assert.deepEqual(MODES, expectedModes);
+  assert.deepEqual({ ...MODES }, expectedModes);
   for (const [mode, requestedLevel] of Object.entries(expectedModes)) {
     const command = buildModeCommand(rawDevice, {
       mode,
@@ -103,6 +103,27 @@ test('buildModeCommand rejects unsupported controller mode and invalid minute du
       `${minutes} minutes should be rejected`,
     );
   }
+});
+
+test('buildModeCommand rejects inherited property names as modes', () => {
+  for (const mode of ['toString', 'constructor']) {
+    assert.throws(
+      () => buildModeCommand(rawDevice, { mode, duration: { type: 'permanent' } }),
+      RangeError,
+      `${mode} should not be accepted as a mode`,
+    );
+  }
+});
+
+test('mode mapping cannot be mutated or extended to admit controller level 5', () => {
+  assert.equal(Object.getPrototypeOf(MODES), null);
+  assert.equal(Object.isFrozen(MODES), true);
+  assert.equal(Reflect.set(MODES, 'controller', 5), false);
+  assert.equal(Object.hasOwn(MODES, 'controller'), false);
+  assert.throws(
+    () => buildModeCommand(rawDevice, { mode: 'controller', duration: { type: 'permanent' } }),
+    RangeError,
+  );
 });
 
 test('buildFireplaceEnableCommand preserves unknown fields and sets the validated enable fields', () => {
@@ -162,4 +183,20 @@ test('confirmation helpers match observed mapped state', () => {
   assert.equal(isFireplaceConfirmed({ fireplaceModeStatus: 1 }, true), true);
   assert.equal(isFireplaceConfirmed({ fireplaceModeStatus: 0 }, true), false);
   assert.equal(isFireplaceConfirmed({ fireplaceModeStatus: 0 }, false), true);
+});
+
+test('isModeConfirmed rejects invalid timed duration boundaries', () => {
+  const nowMs = 1_700_000_000_000;
+
+  for (const minutes of [0, 1.5, 1441]) {
+    assert.equal(isModeConfirmed({
+      requestedMode: 4,
+      controlMode: 'manual',
+      manualSettingActiveTill: nowMs + (minutes * 60_000),
+    }, {
+      mode: 'auto',
+      duration: { type: 'minutes', minutes },
+      nowMs,
+    }), false, `${minutes} minutes should not be confirmed`);
+  }
 });
