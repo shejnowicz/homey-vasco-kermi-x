@@ -817,8 +817,8 @@
             "pl": "Domyślny czas sterowania"
           },
           "hint": {
-            "en": "Controls changes made from the device operating-mode picker. Flow action cards can still choose an explicit override.",
-            "pl": "Steruje zmianami wprowadzonymi z poziomu urządzenia przez wybór trybu pracy. Karty akcji Flow nadal mogą wybrać jawne sterowanie."
+            "en": "Controls changes made from the device operating-mode picker. Until next schedule change lets the next schedule event resume control. Flow action cards can explicitly choose permanent, until next schedule, or timed duration.",
+            "pl": "Steruje zmianami wprowadzonymi z poziomu urządzenia przez wybór trybu pracy. Do następnej zmiany harmonogramu pozwala, aby następne zdarzenie harmonogramu wznowiło sterowanie. Karty akcji Flow mogą jawnie wybrać sterowanie na stałe, do następnej zmiany harmonogramu lub na określony czas."
           },
           "value": "schedule",
           "values": [

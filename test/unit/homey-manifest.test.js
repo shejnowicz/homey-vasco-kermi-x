@@ -59,6 +59,10 @@ test('Homey Compose manifest exposes the Vasco device contract', () => {
   assert.equal(duration.value, 'schedule');
   assert.match(duration.hint.en, /device.*Flow/i);
   assert.match(duration.hint.pl, /urządzeni.*Flow/i);
+  assert.match(duration.hint.en, /next schedule event.*resume.*control/i);
+  assert.match(duration.hint.pl, /następne zdarzenie harmonogramu.*wznowi.*sterowanie/i);
+  assert.match(duration.hint.en, /Flow.*permanent.*until next schedule.*timed/i);
+  assert.match(duration.hint.pl, /Flow.*na stałe.*do następnej zmiany harmonogramu.*czas/i);
   for (const id of ['default_duration_minutes', 'default_fireplace_minutes']) {
     assert.equal(settingsById[id].min, 1);
     assert.equal(settingsById[id].max, 1440);
