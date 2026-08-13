@@ -300,10 +300,10 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     return queueAccountSettings(service, this, async (coordinator) => {
       const credentialsChanged = changedKeys.includes('vasco_email')
         || changedKeys.includes('vasco_password');
-      let rollbackCredentials = null;
+      let credentialTransaction = null;
 
       if (credentialsChanged) {
-        rollbackCredentials = await replaceSharedCredentials({
+        credentialTransaction = await replaceSharedCredentials({
           service,
           coordinator,
           editor: this,
@@ -323,9 +323,10 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
           reschedulePolling(service, coordinator, { force: true });
         }
       } catch {
-        if (rollbackCredentials) await rollbackCredentials();
+        if (credentialTransaction) await credentialTransaction.rollback();
         throw new Error('Could not update Vasco settings. Settings were not changed.');
       }
+      if (credentialTransaction) credentialTransaction.discard();
     });
   }
 
@@ -375,11 +376,6 @@ function subscribeToPolling(service, device, intervalSeconds) {
       settingsChain: Promise.resolve(),
       recoveryRequired: false,
     };
-    Object.defineProperty(coordinator, 'credentials', {
-      value: credentialsFromSettings(device.getSettings()),
-      writable: true,
-      enumerable: false,
-    });
     POLLING_COORDINATORS.set(service, coordinator);
   }
 
@@ -468,19 +464,21 @@ async function replaceSharedCredentials({
   editor,
   newSettings,
 }) {
-  const previousCredentials = { ...coordinator.credentials };
   const previousRecoveryRequired = coordinator.recoveryRequired;
-  const nextCredentials = credentialsFromSettings(newSettings);
+  const nextCredentials = {
+    vasco_email: newSettings.vasco_email,
+    vasco_password: newSettings.vasco_password,
+  };
   const updatedDevices = [];
   let credentialsReplaced = false;
+  let credentialRollback = null;
 
   try {
-    await service.updateCredentials(
+    credentialRollback = await service.updateCredentials(
       nextCredentials.vasco_email,
       nextCredentials.vasco_password,
     );
     credentialsReplaced = true;
-    coordinator.credentials = nextCredentials;
     service.stopPolling();
     for (const device of coordinator.subscribers.keys()) {
       if (device === editor || device.deleted) continue;
@@ -498,7 +496,7 @@ async function replaceSharedCredentials({
       await rollbackAndResumePolling(
         service,
         coordinator,
-        previousCredentials,
+        credentialRollback,
         updatedDevices,
         previousRecoveryRequired,
       );
@@ -506,26 +504,27 @@ async function replaceSharedCredentials({
     throw new Error(SETTINGS_UNCHANGED_MESSAGE);
   }
 
-  return () => rollbackAndResumePolling(
-    service,
-    coordinator,
-    previousCredentials,
-    updatedDevices,
-    previousRecoveryRequired,
-  );
+  return {
+    rollback: () => rollbackAndResumePolling(
+      service,
+      coordinator,
+      credentialRollback,
+      updatedDevices,
+      previousRecoveryRequired,
+    ),
+    discard: () => credentialRollback.discard(),
+  };
 }
 
 async function rollbackAndResumePolling(
   service,
   coordinator,
-  previousCredentials,
+  credentialRollback,
   updatedDevices,
   previousRecoveryRequired,
 ) {
   const restored = await rollbackSharedCredentials(
-    service,
-    coordinator,
-    previousCredentials,
+    credentialRollback,
     updatedDevices,
   );
   if (!restored) {
@@ -547,9 +546,7 @@ async function rollbackAndResumePolling(
 }
 
 async function rollbackSharedCredentials(
-  service,
-  coordinator,
-  previousCredentials,
+  credentialRollback,
   updatedDevices,
 ) {
   let settingsRestored = true;
@@ -564,11 +561,7 @@ async function rollbackSharedCredentials(
 
   let serviceRestored = false;
   try {
-    await service.updateCredentials(
-      previousCredentials.vasco_email,
-      previousCredentials.vasco_password,
-    );
-    coordinator.credentials = previousCredentials;
+    await credentialRollback.rollback();
     serviceRestored = true;
   } catch {
     // The caller stops polling and surfaces a fixed recovery error.
@@ -590,13 +583,6 @@ async function stopForCredentialRecovery(service, coordinator) {
       // Continue marking the other affected devices before surfacing recovery.
     }
   }));
-}
-
-function credentialsFromSettings(settings) {
-  return {
-    vasco_email: settings?.vasco_email,
-    vasco_password: settings?.vasco_password,
-  };
 }
 
 function minimumPollingInterval(coordinator) {

@@ -135,3 +135,27 @@ credential replacement clears recovery and resumes polling at the current
 effective interval. The focused suite passed 23/23 and fresh verification
 passed the full suite at 84/84, `homey app build`, both `node --check`
 commands, and `git diff --check`. The Aikido MCP server remained unavailable.
+
+## Fix round 3
+
+A further security review found that the polling coordinator retained a raw
+password in its long-lived committed-credential baseline. Making that property
+non-enumerable prevented accidental diagnostics but did not satisfy the Task 6
+secret-lifetime boundary.
+
+The focused RED run passed 42/45. The three new failures showed that the
+account service did not yet provide an opaque rollback operation, the device
+did not discard successful rollback state, and failed sibling persistence
+still attempted raw credential replacement from device-owned state.
+
+`VascoAccountService.updateCredentials()` now returns a one-use opaque handle.
+Only the service retains the previous credentials, and the handle clears them
+before rollback or when `discard()` is called. The device coordinator no longer
+contains credentials or passwords. Successful settings transactions discard
+the handle immediately; failed transactions invoke its opaque rollback while
+preserving the concurrent-update and incomplete-recovery behavior from fix
+round 2.
+
+The focused service/device suites passed 45/45 and fresh full verification
+passed 87/87. `homey app build`, syntax checks, and `git diff --check` also
+passed. The Aikido MCP server remained unavailable.

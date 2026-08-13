@@ -116,6 +116,7 @@ class AccountServiceDouble {
     this.pollingStarts = [];
     this.pollingStops = 0;
     this.credentialUpdates = [];
+    this.credentials = { email: EMAIL, password: PASSWORD };
   }
 
   async readConfiguration(options = {}) {
@@ -157,9 +158,34 @@ class AccountServiceDouble {
   }
 
   async updateCredentials(email, password) {
+    const previous = this.credentials;
     this.credentialUpdates.push({ email, password });
-    this.accountKey = 'synthetic-rekeyed-account';
+    this.credentials = { email, password };
+    this.accountKey = email === EMAIL
+      ? 'synthetic-account-key'
+      : 'synthetic-rekeyed-account';
+    return createTestCredentialRollback(async () => {
+      this.credentialUpdates.push(previous);
+      this.credentials = previous;
+      this.accountKey = previous.email === EMAIL
+        ? 'synthetic-account-key'
+        : 'synthetic-rekeyed-account';
+    });
   }
+}
+
+function createTestCredentialRollback(rollback = async () => undefined) {
+  let active = true;
+  return {
+    async rollback() {
+      if (!active) throw new Error('test credential rollback is no longer active');
+      active = false;
+      await rollback();
+    },
+    discard() {
+      active = false;
+    },
+  };
 }
 
 class AccountRegistryDouble {
@@ -402,6 +428,7 @@ test('credential settings validate and rekey before polling is rescheduled or de
     service.credentialUpdates.push({ email, password });
     await credentialValidation.promise;
     service.accountKey = 'synthetic-rekeyed-account';
+    return createTestCredentialRollback();
   };
   const { device, registry } = createHarness({ service });
   await device.onInit();
@@ -599,6 +626,10 @@ test('failed shared settings persistence rolls credentials and sibling settings 
     service.accountKey = email === NEW_EMAIL
       ? 'synthetic-rekeyed-account'
       : 'synthetic-account-key';
+    return createTestCredentialRollback(async () => {
+      service.credentialUpdates.push({ email: EMAIL, password: PASSWORD });
+      service.accountKey = 'synthetic-account-key';
+    });
   };
   const registry = new AccountRegistryDouble(service);
   const first = new VascoDevice().configure();
@@ -636,16 +667,99 @@ test('failed shared settings persistence rolls credentials and sibling settings 
   assert.equal(second.getSettings().vasco_password, PASSWORD);
 });
 
+test('device credential success discards the service-owned rollback handle', async () => {
+  const service = new AccountServiceDouble();
+  let discarded = 0;
+  service.updateCredentials = async (email, password) => {
+    service.credentialUpdates.push({ email, password });
+    return {
+      rollback: async () => undefined,
+      discard: () => { discarded += 1; },
+    };
+  };
+  const { device } = createHarness({ service });
+  await device.onInit();
+
+  await device.onSettings({
+    oldSettings: device.getSettings(),
+    newSettings: {
+      ...device.getSettings(),
+      vasco_email: NEW_EMAIL,
+      vasco_password: NEW_PASSWORD,
+    },
+    changedKeys: ['vasco_email', 'vasco_password'],
+  });
+
+  assert.equal(discarded, 1);
+});
+
+test('device rollback uses the opaque service handle instead of retaining raw credentials', async () => {
+  const service = new AccountServiceDouble();
+  let currentCredentials = { email: EMAIL, password: PASSWORD };
+  let opaqueRollbacks = 0;
+  service.updateCredentials = async (email, password) => {
+    if (email === EMAIL && service.credentialUpdates.length > 0) {
+      throw new Error('raw credential rollback is forbidden');
+    }
+    service.credentialUpdates.push({ email, password });
+    const previous = currentCredentials;
+    currentCredentials = { email, password };
+    return {
+      rollback: async () => {
+        opaqueRollbacks += 1;
+        currentCredentials = previous;
+      },
+      discard: () => undefined,
+    };
+  };
+  const registry = new AccountRegistryDouble(service);
+  const first = new VascoDevice().configure();
+  const second = new VascoDevice().configure();
+  first.getAccountRegistry = () => registry;
+  second.getAccountRegistry = () => registry;
+  await first.onInit();
+  await second.onInit();
+  second.setSettings = async () => {
+    throw new Error('synthetic settings persistence failure');
+  };
+
+  await assert.rejects(
+    () => first.onSettings({
+      oldSettings: first.getSettings(),
+      newSettings: {
+        ...first.getSettings(),
+        vasco_email: NEW_EMAIL,
+        vasco_password: NEW_PASSWORD,
+      },
+      changedKeys: ['vasco_email', 'vasco_password'],
+    }),
+    /settings were not changed/i,
+  );
+
+  assert.equal(opaqueRollbacks, 1);
+  assert.deepEqual(currentCredentials, { email: EMAIL, password: PASSWORD });
+  assert.deepEqual(service.credentialUpdates, [
+    { email: NEW_EMAIL, password: NEW_PASSWORD },
+  ]);
+});
+
 test('a queued credential failure rolls back to the preceding committed replacement', async () => {
   const firstValidationStarted = deferred();
   const allowFirstValidation = deferred();
   const service = new AccountServiceDouble();
+  let currentCredentials = { email: EMAIL, password: PASSWORD };
   service.updateCredentials = async (email, password) => {
+    const previous = currentCredentials;
     service.credentialUpdates.push({ email, password });
+    currentCredentials = { email, password };
     if (service.credentialUpdates.length === 1) {
       firstValidationStarted.resolve();
       await allowFirstValidation.promise;
     }
+    return createTestCredentialRollback(async () => {
+      service.credentialUpdates.push(previous);
+      currentCredentials = previous;
+    });
   };
   const registry = new AccountRegistryDouble(service);
   const first = new VascoDevice().configure();
@@ -698,7 +812,9 @@ test('failed service compensation stops polling and reports incomplete credentia
   const service = new AccountServiceDouble();
   service.updateCredentials = async (email, password) => {
     service.credentialUpdates.push({ email, password });
-    if (email === EMAIL) throw new Error('synthetic credential rollback failure');
+    return createTestCredentialRollback(async () => {
+      throw new Error('synthetic credential rollback failure');
+    });
   };
   const registry = new AccountRegistryDouble(service);
   const first = new VascoDevice().configure();
@@ -749,6 +865,7 @@ test('failed service compensation stops polling and reports incomplete credentia
 
   service.updateCredentials = async (email, password) => {
     service.credentialUpdates.push({ email, password });
+    return createTestCredentialRollback();
   };
   second.setSettings = originalSetSettings;
   await first.onSettings({

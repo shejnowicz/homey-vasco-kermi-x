@@ -596,6 +596,37 @@ test('successful credential replacement validates first and atomically installs 
   assert.deepEqual(readTokens, [OLD_TOKEN, NEW_TOKEN]);
 });
 
+test('credential replacement returns a disposable opaque rollback handle owned by the service', async () => {
+  const logins = [];
+  const readTokens = [];
+  const apiClient = {
+    login: async (email, password) => {
+      logins.push({ email, password });
+      return email === NEW_EMAIL ? NEW_TOKEN : OLD_TOKEN;
+    },
+    getAccountConfiguration: async token => {
+      readTokens.push(token);
+      return fixture;
+    },
+  };
+  const service = createService(apiClient);
+  await service.readConfiguration();
+
+  const rollback = await service.updateCredentials(NEW_EMAIL, NEW_PASSWORD);
+  assert.equal(typeof rollback.rollback, 'function');
+  assert.equal(typeof rollback.discard, 'function');
+  assert.doesNotMatch(JSON.stringify(rollback), new RegExp(PASSWORD));
+  await rollback.rollback();
+  await service.readConfiguration();
+
+  assert.deepEqual(logins, [
+    { email: EMAIL, password: PASSWORD },
+    { email: NEW_EMAIL, password: NEW_PASSWORD },
+    { email: EMAIL, password: PASSWORD },
+  ]);
+  assert.deepEqual(readTokens, [OLD_TOKEN, OLD_TOKEN]);
+});
+
 test('credential replacement supersedes a stale in-flight login failure without a false notification', async () => {
   const oldLogin = deferred();
   const oldLoginEntered = deferred();
