@@ -36,6 +36,9 @@ const POLLING_COORDINATOR = Symbol('vascoPollingCoordinator');
 
 const CAPABILITIES = Object.freeze([
   ['vasco_mode', state => MODE_BY_LEVEL.get(state.requestedMode) ?? null],
+  ['measure_vasco_mode', state => (
+    MODE_BY_LEVEL.has(state.requestedMode) ? state.requestedMode : null
+  )],
   ['measure_temperature.indoor', state => state.indoorTemperature],
   ['measure_temperature.outdoor', state => state.outdoorTemperature],
   ['vasco_supply_fan', state => state.fanSpeedInlet],

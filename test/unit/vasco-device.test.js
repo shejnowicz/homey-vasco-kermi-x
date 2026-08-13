@@ -393,6 +393,7 @@ test('applyState writes only changed non-null capabilities and emits post-initia
 
   assert.deepEqual(device.capabilityWrites, [
     ['vasco_mode', 'high'],
+    ['measure_vasco_mode', 3],
     ['vasco_fireplace', true],
     ['alarm_filter', true],
     ['alarm_generic', false],
@@ -405,6 +406,37 @@ test('applyState writes only changed non-null capabilities and emits post-initia
   ]);
 });
 
+test('mode number synchronization writes each supported requested operating mode', async () => {
+  const { device } = createHarness();
+  const baseState = {
+    indoorTemperature: 21,
+    outdoorTemperature: 8,
+    fanSpeedInlet: 40,
+    fanSpeedExhaust: 38,
+    bypassPosition: 5,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+    fireplaceModeStatus: 0,
+    filterDirty: 0,
+    faultStatus: 0,
+    defrost: 0,
+    rfCommunicationStatus: 0,
+  };
+
+  for (const [level, mode] of [
+    [1, 'low'],
+    [2, 'medium'],
+    [3, 'high'],
+    [4, 'auto'],
+    [6, 'holidays'],
+    [7, 'guests'],
+  ]) {
+    await device.applyState({ ...baseState, mode: level, requestedMode: level }, { initial: true });
+    assert.equal(device.getCapabilityValue('vasco_mode'), mode);
+    assert.equal(device.getCapabilityValue('measure_vasco_mode'), level);
+  }
+});
+
 test('RF status zero is healthy and a non-zero status raises the alarm', async () => {
   const { device } = createHarness();
 
@@ -415,7 +447,7 @@ test('RF status zero is healthy and a non-zero status raises the alarm', async (
   assert.equal(device.capabilities.get('alarm_rf'), true);
 });
 
-test('the mode picker uses the configured default duration and applies confirmed state immediately', async () => {
+test('optimistic mode acknowledgement applies both mode values before a later poll', async () => {
   const { device, service } = createHarness({
     settings: {
       default_duration_type: 'minutes',
@@ -436,6 +468,8 @@ test('the mode picker uses the configured default duration and applies confirmed
     manualSettingActiveTill: NOW_MS + (30 * 60_000),
   });
   assert.equal(device.capabilities.get('vasco_mode'), 'auto');
+  assert.equal(device.capabilities.get('measure_vasco_mode'), 4);
+  assert.equal(service.reads.length, 1);
 });
 
 function withoutRequestedLevel(device) {
