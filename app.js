@@ -64,6 +64,10 @@ module.exports = class VascoKermiXApp extends Homey.App {
     condition('manual_override_is_active', ({ device }) => (
       requiredDevice(device).getCapabilityValue('vasco_control_state') === 'manual'
     ));
+    condition('control_duration_is', ({ device, duration }) => {
+      const value = requiredDevice(device).getCapabilityValue('vasco_control_duration');
+      return value !== null && value !== undefined && value === duration;
+    });
     condition('filter_attention', ({ device }) => (
       requiredDevice(device).getCapabilityValue('alarm_filter') === true
     ));

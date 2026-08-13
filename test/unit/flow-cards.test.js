@@ -42,6 +42,7 @@ test('driver Flow manifest defines every approved bilingual card with safe argum
       mode_is: labels('Operating mode', 'Tryb pracy', 'Operating mode !{{is|isn\'t}} [[mode]]', 'Tryb pracy !{{to|nie jest}} [[mode]]'),
       fireplace_is_active: labels('Fireplace mode', 'Tryb kominka', 'Fireplace mode !{{is|isn\'t}} active', 'Tryb kominka !{{jest|nie jest}} aktywny'),
       manual_override_is_active: labels('Manual override', 'Ręczne sterowanie', 'Manual override !{{is|isn\'t}} active', 'Ręczne sterowanie !{{jest|nie jest}} aktywne'),
+      control_duration_is: labels('Control duration', 'Sposób sterowania', 'Control duration !{{is|isn\'t}} [[duration]]', 'Sposób sterowania !{{to|nie jest}} [[duration]]'),
       filter_attention: labels('Filter attention', 'Uwaga dotycząca filtra', 'Filter !{{requires|doesn\'t require}} attention', 'Filtr !{{wymaga|nie wymaga}} uwagi'),
       fault_present: labels('Fault', 'Usterka', 'Device !{{has|doesn\'t have}} a fault', 'Urządzenie !{{ma|nie ma}} usterki'),
       defrost_active: labels('Defrost', 'Odszranianie', 'Defrost !{{is|isn\'t}} active', 'Odszranianie !{{jest|nie jest}} aktywne'),
@@ -81,6 +82,19 @@ test('driver Flow manifest defines every approved bilingual card with safe argum
     assert.equal(minutes.min, 1);
     assert.equal(minutes.max, 1440);
   }
+  const controlDuration = readFlow('conditions', 'control_duration_is').args
+    .find(argument => argument.name === 'duration');
+  assert.deepEqual(controlDuration.values, [
+    {
+      id: 'until_schedule',
+      title: {
+        en: 'Until next schedule change',
+        pl: 'Do następnej zmiany harmonogramu',
+      },
+    },
+    { id: 'permanent', title: { en: 'Permanent', pl: 'Na stałe' } },
+    { id: 'timed', title: { en: 'Timed', pl: 'Czasowo' } },
+  ]);
   assert.deepEqual(readFlow('triggers', 'mode_changed').tokens.map(token => token.name), [
     'previous_mode',
     'new_mode',
@@ -164,12 +178,14 @@ function createDevice() {
     ['vasco_mode', 'high'],
     ['vasco_fireplace', true],
     ['vasco_control_state', 'manual'],
+    ['vasco_control_duration', 'until_schedule'],
     ['alarm_filter', true],
     ['alarm_generic', true],
     ['alarm_defrost', true],
   ]);
   return {
     calls,
+    values,
     getCapabilityValue(capability) {
       return values.get(capability);
     },
@@ -218,6 +234,13 @@ test('app registers Flow listeners once, delegates safely, and delivers device t
   assert.equal(await conditions.get('mode_is').listeners[0]({ device, mode: 'high' }), true);
   assert.equal(await conditions.get('fireplace_is_active').listeners[0]({ device }), true);
   assert.equal(await conditions.get('manual_override_is_active').listeners[0]({ device }), true);
+  const controlDuration = conditions.get('control_duration_is').listeners[0];
+  assert.equal(await controlDuration({ device, duration: 'until_schedule' }), true);
+  assert.equal(await controlDuration({ device, duration: 'permanent' }), false);
+  device.values.set('vasco_control_duration', null);
+  for (const duration of ['until_schedule', 'permanent', 'timed']) {
+    assert.equal(await controlDuration({ device, duration }), false);
+  }
   assert.equal(await conditions.get('filter_attention').listeners[0]({ device }), true);
   assert.equal(await conditions.get('fault_present').listeners[0]({ device }), true);
   assert.equal(await conditions.get('defrost_active').listeners[0]({ device }), true);
