@@ -22,7 +22,7 @@ jobs:
       - name: Install project dependencies
         run: npm ci
       - name: Install Homey CLI
-        run: npm install --global homey
+        run: npm install --global homey@4.4.1
       - name: Run tests
         run: npm test
       - name: Build app

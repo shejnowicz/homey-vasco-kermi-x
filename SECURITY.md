@@ -4,9 +4,8 @@
 
 Do not open a public issue for a suspected vulnerability or exposed private
 data. Use GitHub's private vulnerability reporting from the repository Security
-tab. If that option is unavailable, contact the maintainer at
-shejnowicz@gmail.com with a concise, sanitized description and reproduction
-steps.
+tab. If the private reporting form is unavailable, do not disclose the issue in
+a public issue; retry through the Security tab later.
 
 Do not include passwords, access tokens, account exports, raw cloud responses,
 private device identifiers, packet captures, or network captures. If additional

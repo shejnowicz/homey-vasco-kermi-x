@@ -97,3 +97,23 @@ not available in this session, so an Aikido scan could not be run.
 The only remaining verification gap is the unavailable Aikido MCP scan. Homey
 publish validation, the complete automated suite, package audit, and dependency
 audit are clean.
+
+## Fix round 1
+
+Addressed all three release-review findings:
+
+- Removed the personal Gmail fallback from `SECURITY.md`; GitHub private
+  vulnerability reporting is now the only named channel, and a repository scan
+  finds no remaining Gmail address.
+- Pinned CI to the locally verified Homey CLI version, `homey@4.4.1`.
+- Rewrote both Store descriptions as concise neutral prose without a feature
+  list, URL, Markdown, or changelog content.
+
+The publish contract now asserts that SECURITY contains no email address, the
+CI command uses the exact Homey CLI pin and not an unversioned install, and both
+Store descriptions remain short prose rather than comma-heavy feature lists.
+
+RED: focused publish tests failed on the previous Store copy and public release
+channel policy. GREEN: 4 focused tests passed. Fresh full verification passed
+with 92 tests, Homey build, publish-level validation, and `git diff --check`.
+The Aikido MCP scanner remained unavailable.

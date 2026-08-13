@@ -66,6 +66,9 @@ test('store descriptions are plain text and packaging excludes development mater
     assert.doesNotMatch(description, /^\s*#/m, `${filename} must not contain Markdown headings`);
     assert.doesNotMatch(description, /https?:\/\//i, `${filename} must not contain URLs`);
     assert.doesNotMatch(description, /\[[^\]]+\]\([^)]+\)/, `${filename} must not contain links`);
+    assert.ok(description.trim().length <= 300, `${filename} must remain concise`);
+    assert.doesNotMatch(description, /\b(?:supports|obsługuje)\b/i, `${filename} must be neutral prose`);
+    assert.ok((description.match(/,/g) || []).length <= 2, `${filename} must not read as a feature list`);
   }
 
   const homeyIgnore = read('.homeyignore');
@@ -83,6 +86,16 @@ test('store descriptions are plain text and packaging excludes development mater
   }
   assert.doesNotMatch(homeyIgnore, /^README\.txt$/m);
   assert.doesNotMatch(homeyIgnore, /^README\.pl\.txt$/m);
+});
+
+test('public release channels avoid personal email and pin the validated Homey CLI', () => {
+  const security = read('SECURITY.md');
+  const workflow = read('.github', 'workflows', 'validate.yml');
+
+  assert.match(security, /GitHub's private vulnerability reporting/i);
+  assert.doesNotMatch(security, /[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/);
+  assert.match(workflow, /^\s*run: npm install --global homey@4\.4\.1\s*$/m);
+  assert.doesNotMatch(workflow, /^\s*run: npm install --global homey\s*$/m);
 });
 
 test('public issue inputs never solicit private diagnostic material', () => {
