@@ -347,7 +347,6 @@ test('Homey pairing uses a custom login followed by list and add templates', () 
   assert.deepEqual(manifest.pair, [
     {
       id: 'login',
-      navigation: { next: 'list_devices' },
     },
     {
       id: 'list_devices',
@@ -362,7 +361,7 @@ test('Homey pairing uses a custom login followed by list and add templates', () 
   ]);
 });
 
-test('custom login submits credentials without echoing callback details', () => {
+test('custom login awaits authentication before navigating and redacts failures', async () => {
   const html = readFileSync(
     join(root, 'drivers', 'vasco-kermi-x', 'pair', 'login.html'),
     'utf8',
@@ -381,11 +380,11 @@ test('custom login submits credentials without echoing callback details', () => 
   const views = [];
   const Homey = {
     ready() {},
-    emit(name, payload, callback) {
+    async emit(name, payload) {
       emitted.push({ name, payload });
-      callback(null, true);
+      return true;
     },
-    showView(view) {
+    async showView(view) {
       views.push(view);
     },
   };
@@ -394,7 +393,7 @@ test('custom login submits credentials without echoing callback details', () => 
     document: { getElementById: id => elements.get(id) },
   });
 
-  elements.get('login-form').listeners.submit({ preventDefault() {} });
+  await elements.get('login-form').listeners.submit({ preventDefault() {} });
 
   assert.equal(emitted.length, 1);
   assert.equal(emitted[0].name, 'login');
@@ -403,10 +402,10 @@ test('custom login submits credentials without echoing callback details', () => 
   assert.deepEqual(views, ['list_devices']);
   assert.equal(elements.get('error').textContent, '');
 
-  Homey.emit = (_name, _payload, callback) => {
-    callback(new Error(`rejected:${EMAIL}:${PASSWORD}`));
+  Homey.emit = async () => {
+    throw new Error(`rejected:${EMAIL}:${PASSWORD}`);
   };
-  elements.get('login-form').listeners.submit({ preventDefault() {} });
+  await elements.get('login-form').listeners.submit({ preventDefault() {} });
   assert.match(elements.get('error').textContent, /sign in|credentials/i);
   assert.doesNotMatch(elements.get('error').textContent, new RegExp(EMAIL));
   assert.doesNotMatch(elements.get('error').textContent, new RegExp(PASSWORD));

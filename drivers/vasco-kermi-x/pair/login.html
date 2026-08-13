@@ -41,22 +41,22 @@
     const submit = document.getElementById('submit');
     const errorMessage = document.getElementById('error');
 
-    form.addEventListener('submit', (event) => {
+    form.addEventListener('submit', async (event) => {
       event.preventDefault();
       submit.disabled = true;
       errorMessage.textContent = '';
 
-      Homey.emit('login', {
-        email: email.value,
-        password: password.value,
-      }, (error) => {
+      try {
+        await Homey.emit('login', {
+          email: email.value,
+          password: password.value,
+        });
+        await Homey.showView('list_devices');
+      } catch (error) {
+        errorMessage.textContent = 'Could not sign in. Check your credentials and try again.';
+      } finally {
         submit.disabled = false;
-        if (error) {
-          errorMessage.textContent = 'Could not sign in. Check your credentials and try again.';
-          return;
-        }
-        Homey.showView('list_devices');
-      });
+      }
     });
 
     Homey.ready();
