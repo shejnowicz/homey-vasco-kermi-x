@@ -1337,6 +1337,22 @@ test('external Fireplace Stop returns a fixed explanation without sending any co
   assert.deepEqual(service.commands, []);
 });
 
+test('Fireplace Stop reports that an already-ended Homey session is no longer active', async () => {
+  const { device, service } = createHarness();
+  device.store.device_contract_version = 2;
+  await device.onInit();
+
+  await assert.rejects(
+    () => device.capabilityListeners.get('button.stop_fireplace')(),
+    {
+      message: 'There is no active Homey-started Fireplace mode session to stop.',
+    },
+  );
+
+  assert.equal(device.getCapabilityValue('vasco_fireplace'), false);
+  assert.deepEqual(service.commands, []);
+});
+
 test('unconfirmed commands restore the observed state and expose only a fixed error', async () => {
   const secret = 'private-upstream-response';
   const observed = structuredClone(fixture);

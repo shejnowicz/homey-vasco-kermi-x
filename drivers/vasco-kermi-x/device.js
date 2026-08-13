@@ -560,6 +560,11 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
 
   async stopFireplace() {
     const session = this.fireplaceSession;
+    if (!session && this.getCapabilityValue('vasco_fireplace') === false) {
+      throw new Error(
+        'There is no active Homey-started Fireplace mode session to stop.',
+      );
+    }
     if (!session || Object.hasOwn(session, 'suppressUntil')) {
       throw new Error(
         'Homey can only stop Fireplace mode sessions that were started from Homey.',
