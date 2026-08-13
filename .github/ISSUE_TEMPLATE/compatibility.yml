@@ -1,0 +1,60 @@
+name: Compatibility report
+description: Share sanitized results for an X Series ventilation-unit model.
+title: "[Compatibility]: "
+labels: [compatibility]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping verify another model. Do not attach credentials, account data, private identifiers, API output, or network traffic.
+  - type: input
+    id: model
+    attributes:
+      label: Product model
+      description: Enter the public model name printed on the unit or shown in its official app.
+      placeholder: Vasco X500
+    validations:
+      required: true
+  - type: input
+    id: unit_version
+    attributes:
+      label: Ventilation-unit software version
+      description: Enter the software or firmware version if it is visible in a normal user interface.
+    validations:
+      required: true
+  - type: input
+    id: homey_version
+    attributes:
+      label: Homey software version
+    validations:
+      required: true
+  - type: input
+    id: app_version
+    attributes:
+      label: App version
+    validations:
+      required: true
+  - type: dropdown
+    id: pairing
+    attributes:
+      label: Pairing result
+      options:
+        - Paired and working
+        - Discovered but rejected as incompatible
+        - Not discovered
+    validations:
+      required: true
+  - type: textarea
+    id: observations
+    attributes:
+      label: Observed behaviour
+      description: Describe which visible readings and controls worked or failed using ordinary user-facing names.
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Public-data confirmation
+      options:
+        - label: I removed private account and device information from this report.
+          required: true

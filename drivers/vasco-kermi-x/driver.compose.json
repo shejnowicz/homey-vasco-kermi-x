@@ -5,6 +5,11 @@
   },
   "class": "fan",
   "connectivity": ["cloud"],
+  "images": {
+    "small": "/drivers/vasco-kermi-x/assets/images/small.png",
+    "large": "/drivers/vasco-kermi-x/assets/images/large.png",
+    "xlarge": "/drivers/vasco-kermi-x/assets/images/xlarge.png"
+  },
   "pair": [
     {
       "id": "login",

@@ -1,0 +1,13 @@
+.github/
+.superpowers/
+docs/
+test/
+.gitignore
+.homeyignore
+CONTRIBUTING.md
+SECURITY.md
+LICENSE
+README.md
+package-lock.json
+assets/images/source.svg
+drivers/vasco-kermi-x/assets/images/source.svg
