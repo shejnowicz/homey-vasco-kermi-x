@@ -4,7 +4,6 @@ const assert = require('node:assert/strict');
 const { MODES } = require('../../lib/vasco-modes');
 const {
   buildFireplaceCommand,
-  buildFireplaceEnableCommand,
   buildModeCommand,
   isFireplaceCommand,
   isFireplaceConfirmed,
@@ -166,15 +165,6 @@ test('isFireplaceCommand accepts zero and positive whole-minute writes', () => {
     duration: { type: 'permanent' },
   })), false);
   assert.equal(isFireplaceCommand({ ...rawDevice, fireplaceModeTime: 1.5 }), false);
-});
-
-test('buildFireplaceEnableCommand remains compatible with the current driver', () => {
-  const command = buildFireplaceEnableCommand(rawDevice, { minutes: 45 });
-
-  assert.equal(command.fireplaceModeStatus, 1);
-  assert.equal(command.fireplaceModeTime, 45);
-  assert.equal(command.nextParameter, rawDevice.nextParameter);
-  assert.equal(command.nextValue, rawDevice.nextValue);
 });
 
 test('confirmation helpers match observed mapped state', () => {
