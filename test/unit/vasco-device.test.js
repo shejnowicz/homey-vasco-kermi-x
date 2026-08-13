@@ -1021,6 +1021,18 @@ test('initialization failure releases an acquired account reference', async () =
   assert.deepEqual(registry.releases, ['synthetic-account-key']);
 });
 
+test('Homey onUninit releases polling and the shared account reference idempotently', async () => {
+  const { device, registry, service } = createHarness();
+  await device.onInit();
+
+  await device.onUninit();
+  await device.onDeleted();
+
+  assert.equal(service.pollingStops, 1);
+  assert.deepEqual(registry.releases, ['synthetic-account-key']);
+  assert.equal(device.accountService, null);
+});
+
 test('Fireplace disable remains blocked until its cloud payload is verified', async () => {
   const { device, service } = createHarness();
   await device.onInit();

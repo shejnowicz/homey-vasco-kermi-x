@@ -91,6 +91,16 @@ test('setDeviceProperties serializes a complete device array and returns its res
 });
 
 test('rejects an aborted request with a typed transport error', async () => {
+  const timers = [];
+  const clock = {
+    setTimeout(fn, delayMs) {
+      timers.push({ fn, delayMs });
+      return timers.length;
+    },
+    clearTimeout(id) {
+      timers[id - 1].cleared = true;
+    },
+  };
   const fetchImpl = async (_url, { signal }) => new Promise((_resolve, reject) => {
     signal.addEventListener('abort', () => {
       const error = new Error('request aborted');
@@ -98,12 +108,18 @@ test('rejects an aborted request with a typed transport error', async () => {
       reject(error);
     }, { once: true });
   });
-  const client = new VascoApiClient({ fetchImpl, baseUrl: API_BASE_URL, timeoutMs: 1 });
+  const client = new VascoApiClient({ fetchImpl, baseUrl: API_BASE_URL, timeoutMs: 1, clock });
+
+  const request = client.getAccountConfiguration(USER_TOKEN);
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0].delayMs, 1);
+  timers[0].fn();
 
   await assert.rejects(
-    () => client.getAccountConfiguration(USER_TOKEN),
+    () => request,
     (error) => error instanceof VascoTransportError && /get account configuration/.test(error.message),
   );
+  assert.equal(timers[0].cleared, true);
 });
 
 test('rejects login authentication failures without leaking credentials or token', async () => {

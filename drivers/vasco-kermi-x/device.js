@@ -2,8 +2,6 @@
 
 const Homey = require('homey');
 
-const { VascoAccountRegistry } = require('../../lib/vasco-account-registry');
-const { VascoApiClient } = require('../../lib/vasco-api-client');
 const {
   buildFireplaceEnableCommand,
   buildModeCommand,
@@ -29,7 +27,7 @@ const DURATION_TYPES = new Set(['schedule', 'permanent', 'minutes']);
 const MODE_BY_LEVEL = new Map(
   Object.entries(MODES).map(([mode, level]) => [level, mode]),
 );
-const POLLING_COORDINATORS = new WeakMap();
+const POLLING_COORDINATOR = Symbol('vascoPollingCoordinator');
 
 const CAPABILITIES = Object.freeze([
   ['vasco_mode', state => MODE_BY_LEVEL.get(state.requestedMode) ?? null],
@@ -99,16 +97,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     const app = this.homey?.app;
     if (!app) throw new Error('The Vasco app runtime is unavailable');
     if (app.vascoAccountRegistry) return app.vascoAccountRegistry;
-
-    app.vascoAccountRegistry = new VascoAccountRegistry({
-      apiClientFactory: () => new VascoApiClient(),
-      notify: error => this.homey?.notifications?.createNotification({
-        excerpt: error instanceof VascoAuthenticationError
-          ? 'Vasco authentication failed; update the account credentials.'
-          : 'A Vasco account operation needs attention.',
-      }),
-    });
-    return app.vascoAccountRegistry;
+    throw new Error('The Vasco account registry is not initialized');
   }
 
   getNow() {
@@ -336,7 +325,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     if (!service || !registry) return;
 
     this.deleted = true;
-    const coordinator = POLLING_COORDINATORS.get(service);
+    const coordinator = getPollingCoordinator(service);
     unsubscribeFromPolling(service, this);
     this.accountService = null;
     this.accountRegistry = null;
@@ -348,6 +337,10 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       }
     }
     registry.release(service.accountKey);
+  }
+
+  async onUninit() {
+    await this.cleanupAccountReference();
   }
 
   async cleanupAccountReference() {
@@ -368,7 +361,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
 };
 
 function subscribeToPolling(service, device, intervalSeconds) {
-  let coordinator = POLLING_COORDINATORS.get(service);
+  let coordinator = getPollingCoordinator(service);
   if (!coordinator) {
     coordinator = {
       intervalSeconds: null,
@@ -376,7 +369,12 @@ function subscribeToPolling(service, device, intervalSeconds) {
       settingsChain: Promise.resolve(),
       recoveryRequired: false,
     };
-    POLLING_COORDINATORS.set(service, coordinator);
+    Object.defineProperty(service, POLLING_COORDINATOR, {
+      value: coordinator,
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    });
   }
 
   coordinator.subscribers.set(device, intervalSeconds);
@@ -384,7 +382,7 @@ function subscribeToPolling(service, device, intervalSeconds) {
 }
 
 function updatePollingSubscription(service, device, intervalSeconds, { force = false } = {}) {
-  const coordinator = POLLING_COORDINATORS.get(service);
+  const coordinator = getPollingCoordinator(service);
   if (!coordinator || !coordinator.subscribers.has(device)) return;
 
   coordinator.subscribers.set(device, intervalSeconds);
@@ -392,13 +390,13 @@ function updatePollingSubscription(service, device, intervalSeconds, { force = f
 }
 
 function unsubscribeFromPolling(service, device) {
-  const coordinator = POLLING_COORDINATORS.get(service);
+  const coordinator = getPollingCoordinator(service);
   if (!coordinator) return;
 
   const previousInterval = coordinator.intervalSeconds;
   coordinator.subscribers.delete(device);
   if (coordinator.subscribers.size === 0) {
-    POLLING_COORDINATORS.delete(service);
+    delete service[POLLING_COORDINATOR];
     service.stopPolling();
     return;
   }
@@ -441,7 +439,7 @@ async function applyPolledConfiguration(device, configuration) {
 }
 
 function queueAccountSettings(service, device, operation) {
-  const coordinator = POLLING_COORDINATORS.get(service);
+  const coordinator = getPollingCoordinator(service);
   if (!coordinator || !coordinator.subscribers.has(device)) {
     return Promise.reject(new Error('The Vasco device is no longer available.'));
   }
@@ -456,6 +454,10 @@ function queueAccountSettings(service, device, operation) {
     });
   coordinator.settingsChain = update;
   return update;
+}
+
+function getPollingCoordinator(service) {
+  return service?.[POLLING_COORDINATOR] ?? null;
 }
 
 async function replaceSharedCredentials({
