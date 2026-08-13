@@ -331,7 +331,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
         this.identity,
         raw => buildFireplaceCommand(raw, { minutes }),
       );
-      await this.applyState(state, { initial: false });
+      if (state !== null) await this.applyState(state, { initial: false });
       return true;
     } catch (error) {
       this.error('Vasco Fireplace command failed', diagnosticError(error));

@@ -506,7 +506,7 @@ test('mode WebSocket acknowledgement retains confirmation polling', async () => 
   assert.equal(reads, 5);
 });
 
-test('Fireplace command writes fireplaceModeTime through the Vasco WebSocket without shifting minutes', async () => {
+test('Fireplace Enable acknowledgement returns no observed state and skips REST confirmation polling', async () => {
   const physicalWrites = [];
   const restWrites = [];
   let reads = 0;
@@ -538,16 +538,19 @@ test('Fireplace command writes fireplaceModeTime through the Vasco WebSocket wit
   assert.equal(physicalWrites[0].expectedFunctionName, 'dataWritten');
   assert.equal(physicalWrites[0].expectedParameter, 'fireplaceModeTime');
   assert.equal(physicalWrites[0].expectedValue, 45);
-  assert.equal(state.fireplaceModeStatus, fixture.deviceProperties[0].fireplaceModeStatus);
-  assert.equal(state.fireplaceModeTime, fixture.deviceProperties[0].fireplaceModeTime);
+  assert.equal(state, null);
   assert.equal(reads, 1);
 });
 
-test('Fireplace Stop writes zero and completes on WebSocket acknowledgement', async () => {
+test('Fireplace Stop acknowledgement returns no observed state and skips REST confirmation polling', async () => {
   const writes = [];
+  let reads = 0;
   const service = createService({
     login: async () => OLD_TOKEN,
-    getAccountConfiguration: async () => fixture,
+    getAccountConfiguration: async () => {
+      reads += 1;
+      return fixture;
+    },
     setDeviceProperties: async () => ({}),
     writeDeviceParameter: async options => writes.push(options),
   });
@@ -559,7 +562,8 @@ test('Fireplace Stop writes zero and completes on WebSocket acknowledgement', as
 
   assert.equal(writes[0].parameterName, 'fireplaceModeTime');
   assert.equal(writes[0].value, 0);
-  assert.equal(state.fireplaceModeStatus, fixture.deviceProperties[0].fireplaceModeStatus);
+  assert.equal(state, null);
+  assert.equal(reads, 1);
 });
 
 test('WebSocket acknowledgement returns the requested mode before REST catches up', async () => {

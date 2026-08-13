@@ -348,6 +348,7 @@ class AccountServiceDouble {
     const raw = structuredClone(this.configuration.deviceProperties[0]);
     const command = build(raw);
     this.commands.push({ identity, command });
+    if (confirm === null) return null;
     const state = {
       mode: command.nextValue,
       requestedMode: command.nextValue,
@@ -715,6 +716,37 @@ test('Fireplace toggle OFF sends zero and retains Vasco active state', async () 
 
   assert.equal(service.commands[0].command.fireplaceModeTime, 0);
   assert.equal(device.getCapabilityValue('vasco_fireplace'), true);
+});
+
+test('Fireplace acknowledgement preserves the requested toggle until polling supplies authoritative state', async (t) => {
+  for (const command of [
+    { name: 'Enable', initial: 0, requested: true, expectedMinutes: 45 },
+    { name: 'Stop', initial: 1, requested: false, expectedMinutes: 0 },
+  ]) {
+    await t.test(command.name, async () => {
+      const configuration = structuredClone(fixture);
+      configuration.deviceProperties[0].fireplaceModeStatus = command.initial;
+      const { device, service } = createHarness({
+        service: new AccountServiceDouble(configuration),
+      });
+      await device.onInit();
+      device.capabilities.set('vasco_fireplace_duration', '45');
+      device.capabilities.set('vasco_fireplace', command.requested);
+      device.capabilityWrites.length = 0;
+
+      await device.capabilityListeners.get('vasco_fireplace')(command.requested);
+
+      assert.equal(service.commands[0].command.fireplaceModeTime, command.expectedMinutes);
+      assert.equal(device.getCapabilityValue('vasco_fireplace'), command.requested);
+      assert.equal(
+        device.capabilityWrites.some(([capability]) => capability === 'vasco_fireplace'),
+        false,
+      );
+
+      await service.pollingStarts[0].onState(configuration);
+      assert.equal(device.getCapabilityValue('vasco_fireplace'), Boolean(command.initial));
+    });
+  }
 });
 
 test('Fireplace direct control accepts one through 1440 whole minutes', async (t) => {
