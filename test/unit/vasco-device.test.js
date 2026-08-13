@@ -717,7 +717,7 @@ test('applyState writes only changed non-null capabilities and emits post-initia
   ]);
 });
 
-test('control duration synchronization maps all states and preserves the last valid value', async () => {
+test('control duration synchronization maps all states and clears an expired timed override', async () => {
   const { device } = createHarness();
   const baseState = {
     requestedMode: 2,
@@ -747,10 +747,10 @@ test('control duration synchronization maps all states and preserves the last va
 
   await device.applyState({
     ...baseState,
-    controlMode: 'manual',
+    controlMode: 'schedule',
     manualSettingActiveTill: NOW_MS,
   }, { initial: false });
-  assert.equal(device.getCapabilityValue('vasco_control_duration'), 'timed');
+  assert.equal(device.getCapabilityValue('vasco_control_duration'), 'until_schedule');
 });
 
 test('timed override end is formatted in the Homey language and timezone', async () => {

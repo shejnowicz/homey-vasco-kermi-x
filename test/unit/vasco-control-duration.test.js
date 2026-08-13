@@ -28,11 +28,14 @@ test('maps zero, permanent, and future timed Vasco control deadlines', () => {
   }, NOW_MS), 'timed');
 });
 
-test('returns null for unknown, contradictory, and expired control states', () => {
-  for (const state of [
-    {},
-    { controlMode: 'manual', manualSettingActiveTill: NOW_MS },
-  ]) assert.equal(controlDurationValue(state, NOW_MS), null);
+test('maps an expired timed override back to until schedule', () => {
+  assert.equal(controlDurationValue({
+    controlMode: 'schedule', manualSettingActiveTill: NOW_MS,
+  }, NOW_MS), 'until_schedule');
+});
+
+test('returns null for an unknown control state', () => {
+  assert.equal(controlDurationValue({}, NOW_MS), null);
 });
 
 test('returns null when the state or clock is malformed', () => {
