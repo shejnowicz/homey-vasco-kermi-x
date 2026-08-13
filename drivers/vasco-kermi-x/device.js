@@ -56,33 +56,39 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
 
     this.accountRegistry = this.getAccountRegistry();
     const settings = this.getSettings();
-    this.accountService = this.accountRegistry.acquire({
-      email: settings.vasco_email,
-      password: settings.vasco_password,
-    });
+    const intervalSeconds = pollInterval(settings.poll_interval);
+    this.accountService = null;
     this.stateInitialized = false;
     this.lastAvailability = null;
-
-    this.registerCapabilityListener('vasco_mode', mode => (
-      this.setOperatingMode(mode, defaultModeDuration(this.getSettings()))
-    ));
-    this.registerCapabilityListener('vasco_fireplace', enabled => (
-      this.setFireplace(enabled, defaultFireplaceMinutes(this.getSettings()))
-    ));
-    this.registerCapabilityListener('button.test_connection', () => this.testConnection());
+    this.stateQueue = Promise.resolve();
+    this.deleted = false;
 
     try {
-      await this.refreshState({ force: false, initial: true });
-      await this.handleAvailability(true, { initial: true });
-    } catch (error) {
-      await this.handleAvailability(false, { error, initial: true });
-    }
+      this.accountService = this.accountRegistry.acquire({
+        email: settings.vasco_email,
+        password: settings.vasco_password,
+      });
 
-    subscribeToPolling(
-      this.accountService,
-      this,
-      pollInterval(settings.poll_interval),
-    );
+      this.registerCapabilityListener('vasco_mode', mode => (
+        this.setOperatingMode(mode, defaultModeDuration(this.getSettings()))
+      ));
+      this.registerCapabilityListener('vasco_fireplace', enabled => (
+        this.setFireplace(enabled, defaultFireplaceMinutes(this.getSettings()))
+      ));
+      this.registerCapabilityListener('button.test_connection', () => this.testConnection());
+
+      try {
+        await this.refreshState({ force: false, initial: true });
+        await this.handleAvailability(true, { initial: true });
+      } catch (error) {
+        await this.handleAvailability(false, { error, initial: true });
+      }
+
+      subscribeToPolling(this.accountService, this, intervalSeconds);
+    } catch (error) {
+      await this.cleanupAccountReference();
+      throw error;
+    }
   }
 
   getAccountRegistry() {
@@ -112,14 +118,19 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
   }
 
   async applyConfiguration(configuration, { initial = !this.stateInitialized } = {}) {
+    if (this.deleted) return false;
     const device = discoverVentilationDevices(configuration)
       .find(candidate => candidate.identity === this.identity);
     if (!device) {
       throw new VascoProtocolError('The paired Vasco ventilation device was not found');
     }
 
-    await this.applyState(toDeviceState(device.raw), { initial });
-    this.stateInitialized = true;
+    const state = toDeviceState(device.raw);
+    return this.enqueueState(async () => {
+      const applied = await this.applyStateNow(state, { initial });
+      if (applied && !this.deleted) this.stateInitialized = true;
+      return applied;
+    });
   }
 
   async applyState(state, { initial = false } = {}) {
@@ -127,8 +138,14 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       throw new TypeError('A mapped Vasco device state is required');
     }
 
+    return this.enqueueState(() => this.applyStateNow(state, { initial }));
+  }
+
+  async applyStateNow(state, { initial = false } = {}) {
+    if (this.deleted) return false;
     const changes = new Map();
     for (const [capability, mapValue] of CAPABILITIES) {
+      if (this.deleted) return false;
       const value = mapValue(state);
       if (value === null || value === undefined) continue;
 
@@ -138,8 +155,18 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       changes.set(capability, { previous, value });
     }
 
-    if (initial) return;
+    if (initial || this.deleted) return !this.deleted;
     await this.emitCapabilityTransitions(changes);
+    return !this.deleted;
+  }
+
+  enqueueState(operation) {
+    const predecessor = this.stateQueue ?? Promise.resolve();
+    const queued = predecessor
+      .catch(() => undefined)
+      .then(() => (this.deleted ? false : operation()));
+    this.stateQueue = queued;
+    return queued;
   }
 
   async emitCapabilityTransitions(changes) {
@@ -170,6 +197,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
   }
 
   async emitTransition(event, tokens = {}) {
+    if (this.deleted) return;
     const transitionHook = this.homey?.app?.onVascoDeviceTransition;
     if (typeof transitionHook !== 'function') return;
 
@@ -237,15 +265,20 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
   }
 
   async handleAvailability(available, { error, initial = false } = {}) {
+    return this.enqueueState(() => this.handleAvailabilityNow(available, { error, initial }));
+  }
+
+  async handleAvailabilityNow(available, { error, initial = false } = {}) {
     if (this.lastAvailability === available) return;
 
     const previous = this.lastAvailability;
-    this.lastAvailability = available;
     if (available) {
       await this.setAvailable();
     } else {
       await this.setUnavailable(availabilityMessage(error));
     }
+    if (this.deleted) return;
+    this.lastAvailability = available;
 
     if (initial || previous === null) return;
     await this.emitTransition(
@@ -253,27 +286,44 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     );
   }
 
-  async onSettings({ newSettings, changedKeys = [] }) {
+  async onSettings({ oldSettings, newSettings, changedKeys = [] }) {
     validateChangedSettings(newSettings, changedKeys);
+    const service = this.accountService;
+    if (!service || this.deleted) {
+      throw new Error('The Vasco device is no longer available.');
+    }
 
-    if (changedKeys.includes('vasco_email') || changedKeys.includes('vasco_password')) {
-      try {
-        await this.accountService.updateCredentials(
-          newSettings.vasco_email,
-          newSettings.vasco_password,
-        );
-      } catch {
-        throw new Error('Could not validate Vasco credentials. Settings were not changed.');
+    return queueAccountSettings(service, this, async (coordinator) => {
+      const credentialsChanged = changedKeys.includes('vasco_email')
+        || changedKeys.includes('vasco_password');
+      let rollbackCredentials = null;
+
+      if (credentialsChanged) {
+        rollbackCredentials = await replaceSharedCredentials({
+          service,
+          coordinator,
+          editor: this,
+          oldSettings,
+          newSettings,
+        });
       }
-    }
 
-    if (changedKeys.includes('poll_interval')) {
-      updatePollingSubscription(
-        this.accountService,
-        this,
-        pollInterval(newSettings.poll_interval),
-      );
-    }
+      try {
+        if (changedKeys.includes('poll_interval')) {
+          updatePollingSubscription(
+            service,
+            this,
+            pollInterval(newSettings.poll_interval),
+            { force: credentialsChanged },
+          );
+        } else if (credentialsChanged) {
+          reschedulePolling(service, coordinator, { force: true });
+        }
+      } catch {
+        if (rollbackCredentials) await rollbackCredentials();
+        throw new Error('Could not update Vasco settings. Settings were not changed.');
+      }
+    });
   }
 
   async onDeleted() {
@@ -281,10 +331,35 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     const registry = this.accountRegistry;
     if (!service || !registry) return;
 
+    this.deleted = true;
+    const coordinator = POLLING_COORDINATORS.get(service);
     unsubscribeFromPolling(service, this);
     this.accountService = null;
     this.accountRegistry = null;
+    if (coordinator?.settingsChain) {
+      try {
+        await coordinator.settingsChain;
+      } catch {
+        // A rejected settings update must not prevent account cleanup.
+      }
+    }
     registry.release(service.accountKey);
+  }
+
+  async cleanupAccountReference() {
+    const service = this.accountService;
+    const registry = this.accountRegistry;
+    this.deleted = true;
+    if (!service || !registry) return;
+
+    unsubscribeFromPolling(service, this);
+    this.accountService = null;
+    this.accountRegistry = null;
+    try {
+      registry.release(service.accountKey);
+    } catch {
+      // Preserve the initialization error while still severing local references.
+    }
   }
 };
 
@@ -294,6 +369,7 @@ function subscribeToPolling(service, device, intervalSeconds) {
     coordinator = {
       intervalSeconds: null,
       subscribers: new Map(),
+      settingsChain: Promise.resolve(),
     };
     POLLING_COORDINATORS.set(service, coordinator);
   }
@@ -302,12 +378,12 @@ function subscribeToPolling(service, device, intervalSeconds) {
   reschedulePolling(service, coordinator);
 }
 
-function updatePollingSubscription(service, device, intervalSeconds) {
+function updatePollingSubscription(service, device, intervalSeconds, { force = false } = {}) {
   const coordinator = POLLING_COORDINATORS.get(service);
   if (!coordinator || !coordinator.subscribers.has(device)) return;
 
   coordinator.subscribers.set(device, intervalSeconds);
-  reschedulePolling(service, coordinator);
+  reschedulePolling(service, coordinator, { force });
 }
 
 function unsubscribeFromPolling(service, device) {
@@ -318,6 +394,7 @@ function unsubscribeFromPolling(service, device) {
   coordinator.subscribers.delete(device);
   if (coordinator.subscribers.size === 0) {
     POLLING_COORDINATORS.delete(service);
+    service.stopPolling();
     return;
   }
   if (minimumPollingInterval(coordinator) !== previousInterval) {
@@ -325,20 +402,143 @@ function unsubscribeFromPolling(service, device) {
   }
 }
 
-function reschedulePolling(service, coordinator) {
+function reschedulePolling(service, coordinator, { force = false } = {}) {
+  if (coordinator.subscribers.size === 0) return;
   const intervalSeconds = minimumPollingInterval(coordinator);
-  if (intervalSeconds === coordinator.intervalSeconds) return;
+  if (!force && intervalSeconds === coordinator.intervalSeconds) return;
   coordinator.intervalSeconds = intervalSeconds;
 
   service.startPolling(
     intervalSeconds,
     configuration => Promise.all([...coordinator.subscribers.keys()].map(device => (
-      device.applyConfiguration(configuration, { initial: !device.stateInitialized })
+      applyPolledConfiguration(device, configuration)
     ))),
-    (available, error) => Promise.all([...coordinator.subscribers.keys()].map(device => (
-      device.handleAvailability(available, { error })
-    ))),
+    (available, error) => {
+      if (available) return Promise.resolve();
+      return Promise.all([...coordinator.subscribers.keys()].map(device => (
+        device.handleAvailability(false, { error })
+      )));
+    },
   );
+}
+
+async function applyPolledConfiguration(device, configuration) {
+  if (device.deleted) return;
+  try {
+    const applied = await device.applyConfiguration(
+      configuration,
+      { initial: !device.stateInitialized },
+    );
+    if (applied) await device.handleAvailability(true);
+  } catch (error) {
+    if (!device.deleted) await device.handleAvailability(false, { error });
+  }
+}
+
+function queueAccountSettings(service, device, operation) {
+  const coordinator = POLLING_COORDINATORS.get(service);
+  if (!coordinator || !coordinator.subscribers.has(device)) {
+    return Promise.reject(new Error('The Vasco device is no longer available.'));
+  }
+
+  const update = coordinator.settingsChain
+    .catch(() => undefined)
+    .then(() => {
+      if (device.deleted || !coordinator.subscribers.has(device)) {
+        throw new Error('The Vasco device is no longer available.');
+      }
+      return operation(coordinator);
+    });
+  coordinator.settingsChain = update;
+  return update;
+}
+
+async function replaceSharedCredentials({
+  service,
+  coordinator,
+  editor,
+  oldSettings,
+  newSettings,
+}) {
+  const previousCredentials = {
+    vasco_email: oldSettings?.vasco_email,
+    vasco_password: oldSettings?.vasco_password,
+  };
+  const nextCredentials = {
+    vasco_email: newSettings.vasco_email,
+    vasco_password: newSettings.vasco_password,
+  };
+  const updatedDevices = [];
+  let credentialsReplaced = false;
+
+  try {
+    await service.updateCredentials(
+      nextCredentials.vasco_email,
+      nextCredentials.vasco_password,
+    );
+    credentialsReplaced = true;
+    service.stopPolling();
+    for (const device of coordinator.subscribers.keys()) {
+      if (device === editor || device.deleted) continue;
+      const settings = device.getSettings();
+      const before = {
+        vasco_email: settings.vasco_email,
+        vasco_password: settings.vasco_password,
+      };
+      await device.setSettings(nextCredentials);
+      updatedDevices.push({ device, before });
+    }
+  } catch {
+    if (credentialsReplaced) {
+      await rollbackAndResumePolling(
+        service,
+        coordinator,
+        previousCredentials,
+        updatedDevices,
+      );
+    }
+    throw new Error('Could not validate Vasco credentials. Settings were not changed.');
+  }
+
+  return () => rollbackAndResumePolling(
+    service,
+    coordinator,
+    previousCredentials,
+    updatedDevices,
+  );
+}
+
+async function rollbackAndResumePolling(
+  service,
+  coordinator,
+  previousCredentials,
+  updatedDevices,
+) {
+  await rollbackSharedCredentials(service, previousCredentials, updatedDevices);
+  try {
+    reschedulePolling(service, coordinator, { force: true });
+  } catch {
+    // Preserve the fixed settings error if polling cannot be resumed immediately.
+  }
+}
+
+async function rollbackSharedCredentials(service, previousCredentials, updatedDevices) {
+  for (const { device, before } of [...updatedDevices].reverse()) {
+    if (device.deleted) continue;
+    try {
+      await device.setSettings(before);
+    } catch {
+      // Continue restoring the account even if Homey rejects a sibling rollback.
+    }
+  }
+  try {
+    await service.updateCredentials(
+      previousCredentials.vasco_email,
+      previousCredentials.vasco_password,
+    );
+  } catch {
+    // Preserve the fixed settings error without exposing credential details.
+  }
 }
 
 function minimumPollingInterval(coordinator) {

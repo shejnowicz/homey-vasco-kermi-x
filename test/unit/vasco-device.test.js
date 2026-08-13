@@ -5,6 +5,7 @@ const { test } = require('node:test');
 
 const fixture = require('../fixtures/account-multiple-devices');
 const { VascoAccountService } = require('../../lib/vasco-account-service');
+const { toDeviceState } = require('../../lib/vasco-device-mapper');
 const { VascoProtocolError, VascoTransportError } = require('../../lib/vasco-errors');
 
 const EMAIL = 'device-owner@example.invalid';
@@ -32,6 +33,7 @@ class HomeyDeviceDouble {
     this.capabilityWrites = [];
     this.capabilityListeners = new Map();
     this.availability = [];
+    this.settingsWrites = [];
     this.logged = [];
     this.homey = {
       app,
@@ -46,6 +48,11 @@ class HomeyDeviceDouble {
 
   getData() {
     return { ...this.data };
+  }
+
+  async setSettings(settings) {
+    this.settingsWrites.push({ ...settings });
+    Object.assign(this.settings, settings);
   }
 
   registerCapabilityListener(capability, listener) {
@@ -186,7 +193,7 @@ function createHarness({ service = new AccountServiceDouble(), settings, app } =
 }
 
 async function settle() {
-  for (let index = 0; index < 12; index += 1) await Promise.resolve();
+  for (let index = 0; index < 24; index += 1) await Promise.resolve();
 }
 
 test('initialization acquires the shared account, registers controls, syncs before polling, and skips null values', async () => {
@@ -516,6 +523,207 @@ test('devices sharing one account share one polling loop and both receive its st
   await first.onDeleted();
   await second.onDeleted();
   assert.deepEqual(registry.releases, ['synthetic-account-key', 'synthetic-account-key']);
+  assert.equal(service.pollingStops, 1);
+});
+
+test('credential replacement is persisted across every device sharing the account', async () => {
+  const service = new AccountServiceDouble();
+  const registry = new AccountRegistryDouble(service);
+  const first = new VascoDevice().configure();
+  const second = new VascoDevice().configure();
+  first.getAccountRegistry = () => registry;
+  second.getAccountRegistry = () => registry;
+  await first.onInit();
+  await second.onInit();
+
+  await first.onSettings({
+    oldSettings: first.getSettings(),
+    newSettings: {
+      ...first.getSettings(),
+      vasco_email: NEW_EMAIL,
+      vasco_password: NEW_PASSWORD,
+    },
+    changedKeys: ['vasco_email', 'vasco_password'],
+  });
+
+  assert.deepEqual(second.settingsWrites, [{
+    vasco_email: NEW_EMAIL,
+    vasco_password: NEW_PASSWORD,
+  }]);
+  assert.equal(second.getSettings().vasco_email, NEW_EMAIL);
+  assert.equal(second.getSettings().vasco_password, NEW_PASSWORD);
+});
+
+test('credential replacement stops the old polling generation before shared persistence', async () => {
+  const service = new AccountServiceDouble();
+  const registry = new AccountRegistryDouble(service);
+  const first = new VascoDevice().configure();
+  const second = new VascoDevice().configure();
+  const persistenceStarted = deferred();
+  const allowPersistence = deferred();
+  first.getAccountRegistry = () => registry;
+  second.getAccountRegistry = () => registry;
+  await first.onInit();
+  await second.onInit();
+  const originalSetSettings = second.setSettings.bind(second);
+  second.setSettings = async (settings) => {
+    persistenceStarted.resolve();
+    await allowPersistence.promise;
+    return originalSetSettings(settings);
+  };
+
+  const update = first.onSettings({
+    oldSettings: first.getSettings(),
+    newSettings: {
+      ...first.getSettings(),
+      vasco_email: NEW_EMAIL,
+      vasco_password: NEW_PASSWORD,
+    },
+    changedKeys: ['vasco_email', 'vasco_password'],
+  });
+  await persistenceStarted.promise;
+
+  assert.equal(service.pollingStops, 1);
+  assert.equal(service.pollingStarts.length, 1);
+  allowPersistence.resolve();
+  await update;
+  assert.equal(service.pollingStarts.length, 2);
+});
+
+test('failed shared settings persistence rolls credentials and sibling settings back atomically', async () => {
+  const service = new AccountServiceDouble();
+  service.updateCredentials = async (email, password) => {
+    service.credentialUpdates.push({ email, password });
+    service.accountKey = email === NEW_EMAIL
+      ? 'synthetic-rekeyed-account'
+      : 'synthetic-account-key';
+  };
+  const registry = new AccountRegistryDouble(service);
+  const first = new VascoDevice().configure();
+  const second = new VascoDevice().configure();
+  const third = new VascoDevice().configure();
+  first.getAccountRegistry = () => registry;
+  second.getAccountRegistry = () => registry;
+  third.getAccountRegistry = () => registry;
+  await first.onInit();
+  await second.onInit();
+  await third.onInit();
+  third.setSettings = async () => {
+    throw new Error('synthetic settings persistence failure');
+  };
+
+  await assert.rejects(
+    () => first.onSettings({
+      oldSettings: first.getSettings(),
+      newSettings: {
+        ...first.getSettings(),
+        vasco_email: NEW_EMAIL,
+        vasco_password: NEW_PASSWORD,
+      },
+      changedKeys: ['vasco_email', 'vasco_password'],
+    }),
+    /settings were not changed/i,
+  );
+
+  assert.deepEqual(service.credentialUpdates, [
+    { email: NEW_EMAIL, password: NEW_PASSWORD },
+    { email: EMAIL, password: PASSWORD },
+  ]);
+  assert.equal(service.accountKey, 'synthetic-account-key');
+  assert.equal(second.getSettings().vasco_email, EMAIL);
+  assert.equal(second.getSettings().vasco_password, PASSWORD);
+});
+
+test('concurrent state applications are serialized in observation order', async () => {
+  const { device, transitions } = createHarness();
+  await device.onInit();
+  transitions.length = 0;
+  device.capabilityWrites.length = 0;
+  const firstWrite = deferred();
+  const releaseFirstWrite = deferred();
+  const originalSetCapabilityValue = device.setCapabilityValue.bind(device);
+  device.setCapabilityValue = async (capability, value) => {
+    if (capability === 'vasco_mode' && value === 'medium') {
+      firstWrite.resolve();
+      await releaseFirstWrite.promise;
+    }
+    return originalSetCapabilityValue(capability, value);
+  };
+  const base = toDeviceState(fixture.deviceProperties[0]);
+
+  const first = device.applyState({ ...base, requestedMode: 2 }, { initial: false });
+  await firstWrite.promise;
+  const second = device.applyState({ ...base, requestedMode: 1 }, { initial: false });
+  await settle();
+  releaseFirstWrite.resolve();
+  await Promise.all([first, second]);
+
+  assert.equal(device.capabilities.get('vasco_mode'), 'low');
+  assert.deepEqual(transitions.map(({ event, tokens }) => ({ event, tokens })), [
+    { event: 'mode_changed', tokens: { previous_mode: 'high', new_mode: 'medium' } },
+    { event: 'mode_changed', tokens: { previous_mode: 'medium', new_mode: 'low' } },
+  ]);
+});
+
+test('deletion prevents an in-flight synchronization from writing further state or triggers', async () => {
+  const { device, transitions } = createHarness();
+  await device.onInit();
+  transitions.length = 0;
+  device.capabilityWrites.length = 0;
+  const firstWrite = deferred();
+  const releaseFirstWrite = deferred();
+  const originalSetCapabilityValue = device.setCapabilityValue.bind(device);
+  device.setCapabilityValue = async (capability, value) => {
+    if (device.capabilityWrites.length === 0) {
+      firstWrite.resolve();
+      await releaseFirstWrite.promise;
+    }
+    return originalSetCapabilityValue(capability, value);
+  };
+  const state = {
+    ...toDeviceState(fixture.deviceProperties[0]),
+    requestedMode: 2,
+    indoorTemperature: 19,
+  };
+
+  const update = device.applyState(state, { initial: false });
+  await firstWrite.promise;
+  await device.onDeleted();
+  releaseFirstWrite.resolve();
+  await update;
+
+  assert.equal(device.capabilityWrites.length, 1);
+  assert.deepEqual(transitions, []);
+});
+
+test('a device missing from a successful account poll becomes unavailable and recovers after apply', async () => {
+  const { device, service, transitions } = createHarness();
+  await device.onInit();
+  device.availability.length = 0;
+  transitions.length = 0;
+  const polling = service.pollingStarts[0];
+
+  await polling.onState({ deviceProperties: [] });
+  assert.equal(device.availability.at(-1).available, false);
+  assert.deepEqual(transitions.map(({ event }) => event), ['device_became_unavailable']);
+
+  await polling.onState(fixture);
+  assert.equal(device.availability.at(-1).available, true);
+  assert.deepEqual(transitions.map(({ event }) => event), [
+    'device_became_unavailable',
+    'device_became_available',
+  ]);
+});
+
+test('initialization failure releases an acquired account reference', async () => {
+  const { device, registry } = createHarness();
+  device.registerCapabilityListener = () => {
+    throw new Error('synthetic listener registration failure');
+  };
+
+  await assert.rejects(() => device.onInit(), /listener registration failure/);
+
+  assert.deepEqual(registry.releases, ['synthetic-account-key']);
 });
 
 test('Fireplace disable remains blocked until its cloud payload is verified', async () => {

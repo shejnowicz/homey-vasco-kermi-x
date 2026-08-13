@@ -77,6 +77,34 @@ reference on deletion.
   unless integration evidence becomes available.
 - The Aikido MCP server is required for security scanning but was not available
   in this environment. The full secret-safety and unit test suite passed.
-- The independent reviewer agent could not be started because the parent thread
-  had reached its agent limit. A direct requirement, mutation, security, and
-  diff self-review found no additional blocking issue.
+
+## Fix round 1
+
+The independent review identified four blocking integration issues: shared
+credential changes mutated every subscriber while only one device persisted
+the replacement, asynchronous state callbacks could interleave or continue
+after deletion, per-device mapping failures were swallowed while account
+availability returned true, and failed initialization or an empty polling
+coordinator could retain account resources.
+
+Adversarial tests reproduced all four issues. The first focused RED run passed
+12/19 tests and failed the seven new assertions. The implementation now:
+
+- serializes capability and availability mutations per device and suppresses
+  remaining writes and transitions after deletion;
+- treats a successful poll as recovery only after that device applies the
+  configuration, while a missing or malformed device becomes unavailable;
+- serializes shared-account settings changes, stops the old polling generation
+  after credential commit, persists replacement credentials to every active
+  subscriber, and rolls the service and already-updated siblings back when
+  persistence fails;
+- releases every acquired reference when initialization fails and explicitly
+  stops polling when the last subscriber leaves the coordinator.
+
+The focused suite then passed 19/19. A further stale-poll race test failed
+19/20 before the old generation was stopped at credential commit and passed
+20/20 afterward. Fresh verification passed the full suite at 81/81,
+`homey app build`, both `node --check` commands, and `git diff --check`.
+Fireplace disable remains blocked without issuing a cloud write. The Aikido MCP
+server remains unavailable, so the required external security scan could not
+be run.
