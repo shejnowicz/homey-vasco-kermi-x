@@ -93,16 +93,13 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       this.registerCapabilityListener('vasco_mode', mode => (
         this.setOperatingMode(mode, defaultModeDuration(this.getSettings()))
       ));
-      this.registerCapabilityListener('button.enable_fireplace', () => (
-        this.setFireplace(defaultFireplaceMinutes(
-          this.getCapabilityValue('vasco_fireplace_duration'),
-        ))
+      this.registerCapabilityListener('vasco_fireplace', enabled => (
+        this.setFireplaceState(enabled)
       ));
       this.registerCapabilityListener('vasco_fireplace_duration', (value) => {
         fireplaceDurationMinutes(value);
         return true;
       });
-      this.registerCapabilityListener('button.stop_fireplace', () => this.stopFireplace());
       this.registerCapabilityListener('button.test_connection', () => this.testConnection());
 
       try {
@@ -318,8 +315,14 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     return this.writeFireplaceDuration(validatedMinutes(minutes, 'Fireplace duration'));
   }
 
-  async stopFireplace() {
-    return this.writeFireplaceDuration(0);
+  async setFireplaceState(enabled) {
+    if (enabled === true) {
+      return this.writeFireplaceDuration(defaultFireplaceMinutes(
+        this.getCapabilityValue('vasco_fireplace_duration'),
+      ));
+    }
+    if (enabled === false) return this.writeFireplaceDuration(0);
+    throw new TypeError('Fireplace state must be boolean');
   }
 
   async writeFireplaceDuration(minutes) {

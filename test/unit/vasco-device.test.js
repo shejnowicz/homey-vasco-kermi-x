@@ -470,9 +470,8 @@ test('initialization acquires the shared account, registers controls, syncs befo
 
   assert.deepEqual(registry.acquisitions, [{ email: EMAIL, password: PASSWORD }]);
   assert.deepEqual([...device.capabilityListeners.keys()].sort(), [
-    'button.enable_fireplace',
-    'button.stop_fireplace',
     'button.test_connection',
+    'vasco_fireplace',
     'vasco_fireplace_duration',
     'vasco_mode',
   ]);
@@ -694,30 +693,28 @@ test('Fireplace Enable sends the selected duration without local session state',
   assert.equal(device.getStoreValue('fireplace_session'), null);
 });
 
-test('Fireplace Stop sends zero and leaves status reconciliation to Vasco', async () => {
+test('Fireplace toggle ON sends the selected picker duration', async () => {
+  const { device, service } = createHarness();
+  await device.onInit();
+  device.capabilities.set('vasco_fireplace_duration', '45');
+
+  await device.capabilityListeners.get('vasco_fireplace')(true);
+
+  assert.equal(service.commands[0].command.fireplaceModeTime, 45);
+});
+
+test('Fireplace toggle OFF sends zero and retains Vasco active state', async () => {
   const configuration = structuredClone(fixture);
   configuration.deviceProperties[0].fireplaceModeStatus = 1;
   const { device, service } = createHarness({
     service: new AccountServiceDouble(configuration),
   });
   await device.onInit();
-  await device.stopFireplace();
+
+  await device.capabilityListeners.get('vasco_fireplace')(false);
+
   assert.equal(service.commands[0].command.fireplaceModeTime, 0);
   assert.equal(device.getCapabilityValue('vasco_fireplace'), true);
-});
-
-test('Fireplace button listeners delegate direct Enable and Stop commands', async () => {
-  const { device } = createHarness();
-  await device.onInit();
-  device.capabilities.set('vasco_fireplace_duration', '45');
-  const calls = [];
-  device.setFireplace = async (...args) => calls.push(['enable', ...args]);
-  device.stopFireplace = async (...args) => calls.push(['stop', ...args]);
-
-  await device.capabilityListeners.get('button.enable_fireplace')();
-  await device.capabilityListeners.get('button.stop_fireplace')();
-
-  assert.deepEqual(calls, [['enable', 45], ['stop']]);
 });
 
 test('Fireplace direct control accepts one through 1440 whole minutes', async (t) => {
@@ -762,7 +759,7 @@ test('Fireplace duration picker listener rejects values outside its five-minute 
 test('failed Fireplace commands expose a fixed acknowledgement error without leaking details', async (t) => {
   for (const command of [
     ['Enable', device => device.setFireplace(45)],
-    ['Stop', device => device.stopFireplace()],
+    ['Stop', device => device.setFireplaceState(false)],
   ]) {
     await t.test(command[0], async () => {
       const secret = `private-fireplace-${command[0].toLowerCase()}-response`;
