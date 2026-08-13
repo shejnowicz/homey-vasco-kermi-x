@@ -43,3 +43,18 @@ for (const [filename, languagePattern] of [
     );
   });
 }
+
+test('public documentation describes D/T/X scope and current Fireplace control', () => {
+  const readme = read('README.md');
+  const compatibility = read('.github/ISSUE_TEMPLATE/compatibility.yml');
+  const contributing = read('CONTRIBUTING.md');
+
+  assert.match(readme, /^# Vasco\/Kermi Ventilation for Homey$/m);
+  assert.match(readme, /D, T and X/i);
+  assert.match(readme, /Fireplace.*toggle.*selected duration/i);
+  assert.match(readme, /turn.*Fireplace.*off/i);
+  assert.doesNotMatch(readme, /explicit disabling is not offered/i);
+  assert.doesNotMatch(readme, /exact remaining time|restores? the prior/i);
+  assert.match(compatibility, /D, T (?:and|or) X/i);
+  assert.match(contributing, /test|homey-validate|dependency-audit/i);
+});

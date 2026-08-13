@@ -1,26 +1,25 @@
-# Vasco/Kermi X Series for Homey
+# Vasco/Kermi Ventilation for Homey
 
 An unofficial, community-maintained Homey app for monitoring and controlling
-Vasco and Kermi X Series ventilation units through the vendor cloud service.
+Vasco and Kermi D, T and X ventilation units through the vendor cloud service.
 
 The initial release is developed and tested on a Vasco X500 (`VMD-17RPS01`).
-Other Vasco and Kermi X Series models are expected to use the same cloud API,
-but they still require community verification. Please use the compatibility
-report form before assuming an unlisted model is fully supported.
+It is the only physically verified unit; other Vasco and Kermi D, T and X units
+require community reports before they are considered supported.
 
 ## What it supports
 
 - Low, Medium, High, Auto, Holidays, and Guests operating modes
 - Permanent control, control until the next schedule change, and timed overrides
-- Fireplace mode activation with a configurable duration
+- A Fireplace device toggle that enables the selected duration of 5–85 minutes
 - Indoor and outdoor temperatures, supply and exhaust fan readings, bypass and
   controller state, override end time, and available fault indicators
 - Multiple ventilation units on one account
 - Homey Flow actions, conditions, and device-state triggers
 
 Controller mode is intentionally unsupported because it has not been confirmed
-on the tested unit. Fireplace mode can be enabled, but explicit disabling is not
-offered until the cloud command has been verified safely.
+on the tested unit. Turn Fireplace mode off with the device toggle to send the
+vendor's zero-minute command.
 
 ## Cloud dependency
 
@@ -37,7 +36,7 @@ read, and repeated failures use backoff instead of overlapping requests.
 ## Pairing
 
 1. In Homey, open Devices and choose **Add device**.
-2. Select **Vasco/Kermi X Series** and enter the credentials for the vendor
+2. Select **Vasco/Kermi Ventilation** and enter the credentials for the vendor
    cloud account used by the ventilation unit.
 3. Select one or more compatible units from the discovered list.
 4. Open each added device and review its polling interval and default override

@@ -1,5 +1,5 @@
 name: Compatibility report
-description: Share sanitized results for an X Series ventilation-unit model.
+description: Share sanitized results for a Vasco or Kermi D, T or X ventilation-unit model.
 title: "[Compatibility]: "
 labels: [compatibility]
 body:

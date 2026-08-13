@@ -18,9 +18,11 @@ Report suspected vulnerabilities privately as described in
 1. Fork the repository and create a focused branch.
 2. Install the pinned dependencies with `npm ci`.
 3. Add or update automated tests for behavioural changes.
-4. Run `npm test`.
-5. Run `homey app build` and `homey app validate --level publish`.
-6. Open a pull request describing the user-visible change and verification.
+4. Run `npm test` (the `test` check).
+5. Run `npm audit --omit=dev --audit-level=high` (the `dependency-audit` check).
+6. Run `homey app build`, confirm `git diff --exit-code -- app.json`, and run
+   `homey app validate --level publish` (the `homey-validate` check).
+7. Open a pull request describing the user-visible change and verification.
 
 The app uses Homey Apps SDK v3 and Homey Compose. Edit `.homeycompose/app.json`
 and the driver Compose files; do not hand-edit generated `app.json` content.
