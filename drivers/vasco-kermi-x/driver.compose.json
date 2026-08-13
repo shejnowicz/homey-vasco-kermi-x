@@ -5,6 +5,22 @@
   },
   "class": "sensor",
   "connectivity": ["cloud"],
+  "pair": [
+    {
+      "id": "login",
+      "navigation": { "next": "list_devices" }
+    },
+    {
+      "id": "list_devices",
+      "template": "list_devices",
+      "navigation": { "prev": "login", "next": "add_devices" }
+    },
+    {
+      "id": "add_devices",
+      "template": "add_devices",
+      "navigation": { "prev": "list_devices" }
+    }
+  ],
   "capabilities": [
     "vasco_mode",
     "measure_temperature.indoor",
