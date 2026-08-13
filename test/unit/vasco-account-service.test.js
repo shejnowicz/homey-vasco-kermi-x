@@ -173,6 +173,7 @@ test('forced reads queue one new generation behind an older read and coalesce on
 test('simultaneous expired-token operations share one reauthentication and replay each operation once', async () => {
   let loginCalls = 0;
   const writes = [];
+  const notifications = [];
   const apiClient = {
     login: async () => {
       loginCalls += 1;
@@ -185,7 +186,7 @@ test('simultaneous expired-token operations share one reauthentication and repla
       return { accepted: true };
     },
   };
-  const service = createService(apiClient);
+  const service = createService(apiClient, { notify: notification => notifications.push(notification) });
   await service.readConfiguration();
 
   const build = raw => ({ ...raw, requestedLevel: raw.requestedLevel + 1 });
@@ -197,8 +198,63 @@ test('simultaneous expired-token operations share one reauthentication and repla
   assert.equal(loginCalls, 2);
   assert.equal(writes.length, 4);
   assert.deepEqual(writes.map(write => write.token).sort(), [NEW_TOKEN, NEW_TOKEN, OLD_TOKEN, OLD_TOKEN].sort());
+  assert.equal(notifications.length, 0);
   assert.equal(kitchenState.product, 'Vasco X500');
   assert.equal(bedroomState.product, 'Kermi X350');
+});
+
+test('staggered failures from one expired session reuse its completed reauthentication outcome', async () => {
+  const oldWrites = new Map([
+    [KITCHEN.deviceRef, deferred()],
+    [BEDROOM.deviceRef, deferred()],
+  ]);
+  const bothOldWritesEntered = deferred();
+  const kitchenReplayEntered = deferred();
+  const kitchenReplay = deferred();
+  const writes = [];
+  let oldWriteCalls = 0;
+  let loginCalls = 0;
+  const apiClient = {
+    login: async () => {
+      loginCalls += 1;
+      return [OLD_TOKEN, NEW_TOKEN, 'unexpected-third-token'][loginCalls - 1];
+    },
+    getAccountConfiguration: async () => fixture,
+    setDeviceProperties: async (token, [device]) => {
+      writes.push({ token, deviceId: device.deviceId });
+      if (token === OLD_TOKEN) {
+        oldWriteCalls += 1;
+        if (oldWriteCalls === 2) bothOldWritesEntered.resolve();
+        return oldWrites.get(device.deviceId).promise;
+      }
+      if (token === NEW_TOKEN && device.deviceId === KITCHEN.deviceRef) {
+        kitchenReplayEntered.resolve();
+        return kitchenReplay.promise;
+      }
+      if (token === NEW_TOKEN) {
+        throw new VascoAuthenticationError('shared replay token also rejected');
+      }
+      return { accepted: true };
+    },
+  };
+  const service = createService(apiClient);
+  await service.readConfiguration();
+
+  const kitchen = service.executeDeviceCommand(KITCHEN.identity, raw => ({ ...raw }), () => true);
+  const bedroom = service.executeDeviceCommand(BEDROOM.identity, raw => ({ ...raw }), () => true);
+  await bothOldWritesEntered.promise;
+
+  oldWrites.get(KITCHEN.deviceRef).reject(new VascoAuthenticationError('expired old session'));
+  await kitchenReplayEntered.promise;
+  kitchenReplay.reject(new VascoAuthenticationError('replay also rejected'));
+  await assert.rejects(() => kitchen, VascoAuthenticationError);
+
+  oldWrites.get(BEDROOM.deviceRef).reject(new VascoAuthenticationError('same expired old session'));
+  await assert.rejects(() => bedroom, VascoAuthenticationError);
+
+  assert.equal(loginCalls, 2);
+  assert.ok(writes.some(write => write.deviceId === BEDROOM.deviceRef && write.token === NEW_TOKEN));
+  assert.ok(!writes.some(write => write.token === 'unexpected-third-token'));
 });
 
 test('an operation rejected again after reauthentication is not replayed a second time', async () => {
@@ -453,6 +509,35 @@ test('authentication polling failures become unavailable immediately and emit on
   service.stopPolling();
 });
 
+test('direct authentication failures suppress immediate relogin until backoff and credential replacement resets it', async () => {
+  const clock = new FakeClock();
+  let loginCalls = 0;
+  const apiClient = {
+    login: async email => {
+      loginCalls += 1;
+      if (email === NEW_EMAIL) return NEW_TOKEN;
+      throw new VascoAuthenticationError('credentials rejected');
+    },
+    getAccountConfiguration: async () => fixture,
+  };
+  const service = createService(apiClient, { clock });
+
+  await assert.rejects(() => service.readConfiguration(), VascoAuthenticationError);
+  await assert.rejects(() => service.readConfiguration(), VascoAuthenticationError);
+  assert.equal(loginCalls, 1);
+
+  clock.advance(29_999);
+  await assert.rejects(() => service.readConfiguration(), VascoAuthenticationError);
+  assert.equal(loginCalls, 1);
+  clock.advance(1);
+  await assert.rejects(() => service.readConfiguration(), VascoAuthenticationError);
+  assert.equal(loginCalls, 2);
+
+  await service.updateCredentials(NEW_EMAIL, NEW_PASSWORD);
+  assert.equal(await service.readConfiguration(), fixture);
+  assert.equal(loginCalls, 3);
+});
+
 test('stopPolling clears scheduled work and suppresses completion from an in-flight poll', async () => {
   const clock = new FakeClock();
   const read = deferred();
@@ -511,6 +596,66 @@ test('successful credential replacement validates first and atomically installs 
   assert.deepEqual(readTokens, [OLD_TOKEN, NEW_TOKEN]);
 });
 
+test('credential replacement supersedes a stale in-flight login failure without a false notification', async () => {
+  const oldLogin = deferred();
+  const oldLoginEntered = deferred();
+  const notifications = [];
+  const readTokens = [];
+  const apiClient = {
+    login: async email => {
+      if (email === EMAIL) {
+        oldLoginEntered.resolve();
+        return oldLogin.promise;
+      }
+      return NEW_TOKEN;
+    },
+    getAccountConfiguration: async token => {
+      readTokens.push(token);
+      return fixture;
+    },
+  };
+  const service = createService(apiClient, { notify: notification => notifications.push(notification) });
+
+  const staleRead = service.readConfiguration();
+  await oldLoginEntered.promise;
+  await service.updateCredentials(NEW_EMAIL, NEW_PASSWORD);
+  oldLogin.reject(new VascoAuthenticationError(`${PASSWORD} rejected too late`));
+
+  assert.equal(await staleRead, fixture);
+  assert.deepEqual(readTokens, [NEW_TOKEN]);
+  assert.deepEqual(notifications, []);
+});
+
+test('a read started after credential replacement does not coalesce onto an old-account read', async () => {
+  const oldRead = deferred();
+  const oldReadEntered = deferred();
+  const oldConfiguration = { account: 'old' };
+  const newConfiguration = { account: 'new' };
+  const readTokens = [];
+  const apiClient = {
+    login: async email => email === NEW_EMAIL ? NEW_TOKEN : OLD_TOKEN,
+    getAccountConfiguration: async token => {
+      readTokens.push(token);
+      if (token === OLD_TOKEN) {
+        oldReadEntered.resolve();
+        return oldRead.promise;
+      }
+      return newConfiguration;
+    },
+  };
+  const service = createService(apiClient);
+
+  const beforeReplacement = service.readConfiguration();
+  await oldReadEntered.promise;
+  await service.updateCredentials(NEW_EMAIL, NEW_PASSWORD);
+  const afterReplacement = service.readConfiguration();
+  oldRead.resolve(oldConfiguration);
+
+  assert.equal(await beforeReplacement, oldConfiguration);
+  assert.equal(await afterReplacement, newConfiguration);
+  assert.deepEqual(readTokens, [OLD_TOKEN, NEW_TOKEN]);
+});
+
 test('failed credential validation preserves the working credentials and session without leaking replacements', async () => {
   const logins = [];
   const readTokens = [];
@@ -543,4 +688,21 @@ test('failed credential validation preserves the working credentials and session
     { email: NEW_EMAIL, password: NEW_PASSWORD },
   ]);
   assert.deepEqual(readTokens, [OLD_TOKEN, OLD_TOKEN]);
+});
+
+test('credentials and session token are omitted from enumerable diagnostics', async () => {
+  const apiClient = {
+    login: async () => OLD_TOKEN,
+    getAccountConfiguration: async () => fixture,
+  };
+  const service = createService(apiClient);
+  await service.readConfiguration();
+
+  const diagnostic = JSON.stringify(service);
+  assert.doesNotMatch(diagnostic, new RegExp(EMAIL));
+  assert.doesNotMatch(diagnostic, new RegExp(PASSWORD));
+  assert.doesNotMatch(diagnostic, new RegExp(OLD_TOKEN));
+  assert.ok(!Object.keys(service).includes('email'));
+  assert.ok(!Object.keys(service).includes('password'));
+  assert.ok(!Object.keys(service).includes('session'));
 });
