@@ -9,7 +9,10 @@ const {
   VascoTransportError,
 } = require('../../lib/vasco-errors');
 const { discoverVentilationDevices } = require('../../lib/vasco-device-mapper');
-const { buildFireplaceCommand } = require('../../lib/vasco-command-builder');
+const {
+  buildFireplaceCommand,
+  buildModeCommand,
+} = require('../../lib/vasco-command-builder');
 
 const EMAIL = 'owner@example.invalid';
 const PASSWORD = 'correct-horse-fixture';
@@ -468,6 +471,39 @@ test('holiday and guest modes keep their unshifted Vasco WebSocket codes', async
   }
 
   assert.deepEqual(physicalWrites.map(write => write.value), [6, 7]);
+});
+
+test('mode WebSocket acknowledgement retains confirmation polling', async () => {
+  const clock = new FakeClock();
+  const physicalWrites = [];
+  let reads = 0;
+  const apiClient = {
+    login: async () => OLD_TOKEN,
+    getAccountConfiguration: async () => {
+      reads += 1;
+      return fixture;
+    },
+    setDeviceProperties: async () => ({}),
+    writeDeviceParameter: async options => physicalWrites.push(options),
+  };
+  const service = createService(apiClient, { clock });
+
+  const command = service.executeDeviceCommand(
+    KITCHEN.identity,
+    raw => buildModeCommand(raw, {
+      mode: 'high',
+      duration: { type: 'permanent' },
+    }),
+    () => false,
+  );
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await advanceNextTimer(clock);
+  }
+
+  await assert.rejects(command, VascoProtocolError);
+  assert.equal(physicalWrites[0].parameterName, 'requestedLevel');
+  assert.equal(reads, 5);
 });
 
 test('Fireplace command writes fireplaceModeTime through the Vasco WebSocket without shifting minutes', async () => {
