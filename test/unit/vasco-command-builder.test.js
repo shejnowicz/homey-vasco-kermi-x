@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 
 const { MODES } = require('../../lib/vasco-modes');
 const {
-  buildFireplaceEnableCommand,
+  buildFireplaceCommand,
   buildModeCommand,
-  isFireplaceEnableCommand,
+  isFireplaceCommand,
   isFireplaceConfirmed,
   isModeConfirmed,
 } = require('../../lib/vasco-command-builder');
@@ -139,33 +139,28 @@ test('mode mapping cannot be mutated or extended to admit controller level 5', (
   );
 });
 
-test('buildFireplaceEnableCommand preserves unknown fields and sets the validated enable fields', () => {
+test('buildFireplaceCommand encodes enable and stop without mutating raw state', () => {
   const original = structuredClone(rawDevice);
 
-  const command = buildFireplaceEnableCommand(rawDevice, { minutes: 45 });
-
+  for (const minutes of [0, 45]) {
+    const command = buildFireplaceCommand(rawDevice, { minutes });
+    assert.equal(command.fireplaceModeTime, minutes);
+    assert.equal(command.fireplaceModeStatus, rawDevice.fireplaceModeStatus);
+  }
   assert.deepEqual(rawDevice, original);
-  assert.deepEqual(command, {
-    ...original,
-    fireplaceModeStatus: 1,
-    fireplaceModeTime: 45,
-  });
 
-  for (const minutes of [0, 1441]) {
+  for (const minutes of [-1, 1.5, 1441, Number.NaN]) {
     assert.throws(
-      () => buildFireplaceEnableCommand(rawDevice, { minutes }),
+      () => buildFireplaceCommand(rawDevice, { minutes }),
       RangeError,
     );
   }
 });
 
-test('isFireplaceEnableCommand accepts only validated Fireplace enable commands', () => {
-  assert.equal(isFireplaceEnableCommand(buildFireplaceEnableCommand(rawDevice, { minutes: 45 })), true);
-  assert.equal(isFireplaceEnableCommand(buildModeCommand(rawDevice, {
-    mode: 'high',
-    duration: { type: 'permanent' },
-  })), false);
-  assert.equal(isFireplaceEnableCommand({ ...rawDevice, fireplaceModeStatus: 1, fireplaceModeTime: 1.5 }), false);
+test('isFireplaceCommand accepts zero and positive whole-minute writes', () => {
+  assert.equal(isFireplaceCommand(buildFireplaceCommand(rawDevice, { minutes: 0 })), true);
+  assert.equal(isFireplaceCommand(buildFireplaceCommand(rawDevice, { minutes: 45 })), true);
+  assert.equal(isFireplaceCommand({ ...rawDevice, fireplaceModeTime: 1.5 }), false);
 });
 
 test('confirmation helpers match observed mapped state', () => {

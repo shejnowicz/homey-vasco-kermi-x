@@ -9,7 +9,7 @@ const {
   VascoTransportError,
 } = require('../../lib/vasco-errors');
 const { discoverVentilationDevices } = require('../../lib/vasco-device-mapper');
-const { buildFireplaceEnableCommand } = require('../../lib/vasco-command-builder');
+const { buildFireplaceCommand } = require('../../lib/vasco-command-builder');
 
 const EMAIL = 'owner@example.invalid';
 const PASSWORD = 'correct-horse-fixture';
@@ -474,14 +474,11 @@ test('Fireplace command writes fireplaceModeTime through the Vasco WebSocket wit
   const physicalWrites = [];
   const restWrites = [];
   let reads = 0;
-  const confirmedConfiguration = structuredClone(fixture);
-  confirmedConfiguration.deviceProperties[0].fireplaceModeStatus = 1;
-  confirmedConfiguration.deviceProperties[0].fireplaceModeTime = 45;
   const apiClient = {
     login: async () => OLD_TOKEN,
     getAccountConfiguration: async () => {
       reads += 1;
-      return reads === 1 ? fixture : confirmedConfiguration;
+      return fixture;
     },
     setDeviceProperties: async (token, [command]) => restWrites.push({ token, command }),
     writeDeviceParameter: async options => physicalWrites.push(options),
@@ -490,13 +487,12 @@ test('Fireplace command writes fireplaceModeTime through the Vasco WebSocket wit
 
   const state = await service.executeDeviceCommand(
     KITCHEN.identity,
-    raw => buildFireplaceEnableCommand(raw, { minutes: 45 }),
-    observed => observed.fireplaceModeStatus === 1 && observed.fireplaceModeTime === 45,
+    raw => buildFireplaceCommand(raw, { minutes: 45 }),
   );
 
   assert.equal(restWrites.length, 1);
   assert.equal(restWrites[0].token, OLD_TOKEN);
-  assert.equal(restWrites[0].command.fireplaceModeStatus, 1);
+  assert.equal(restWrites[0].command.fireplaceModeStatus, fixture.deviceProperties[0].fireplaceModeStatus);
   assert.equal(restWrites[0].command.fireplaceModeTime, 45);
   assert.equal(physicalWrites.length, 1);
   assert.equal(physicalWrites[0].parameterName, 'fireplaceModeTime');
@@ -504,9 +500,28 @@ test('Fireplace command writes fireplaceModeTime through the Vasco WebSocket wit
   assert.equal(physicalWrites[0].expectedFunctionName, 'dataWritten');
   assert.equal(physicalWrites[0].expectedParameter, 'fireplaceModeTime');
   assert.equal(physicalWrites[0].expectedValue, 45);
-  assert.equal(state.fireplaceModeStatus, 1);
-  assert.equal(state.fireplaceModeTime, 45);
+  assert.equal(state.fireplaceModeStatus, fixture.deviceProperties[0].fireplaceModeStatus);
+  assert.equal(state.fireplaceModeTime, fixture.deviceProperties[0].fireplaceModeTime);
   assert.equal(reads, 1);
+});
+
+test('Fireplace Stop writes zero and completes on WebSocket acknowledgement', async () => {
+  const writes = [];
+  const service = createService({
+    login: async () => OLD_TOKEN,
+    getAccountConfiguration: async () => fixture,
+    setDeviceProperties: async () => ({}),
+    writeDeviceParameter: async options => writes.push(options),
+  });
+
+  const state = await service.executeDeviceCommand(
+    KITCHEN.identity,
+    raw => buildFireplaceCommand(raw, { minutes: 0 }),
+  );
+
+  assert.equal(writes[0].parameterName, 'fireplaceModeTime');
+  assert.equal(writes[0].value, 0);
+  assert.equal(state.fireplaceModeStatus, fixture.deviceProperties[0].fireplaceModeStatus);
 });
 
 test('WebSocket acknowledgement returns the requested mode before REST catches up', async () => {
