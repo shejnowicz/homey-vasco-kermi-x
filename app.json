@@ -692,7 +692,9 @@
         "alarm_generic",
         "alarm_defrost",
         "alarm_rf",
-        "button.test_connection"
+        "button.test_connection",
+        "button.enable_fireplace",
+        "measure_vasco_mode"
       ],
       "capabilitiesOptions": {
         "measure_temperature.indoor": {
@@ -722,6 +724,16 @@
           "desc": {
             "en": "Check whether the saved Vasco credentials can connect to the cloud service.",
             "pl": "Sprawdź, czy zapisane dane Vasco umożliwiają połączenie z usługą chmurową."
+          }
+        },
+        "button.enable_fireplace": {
+          "title": {
+            "en": "Enable Fireplace mode",
+            "pl": "Włącz tryb kominka"
+          },
+          "desc": {
+            "en": "Enable Fireplace mode for the configured default duration.",
+            "pl": "Włącz tryb kominka na skonfigurowany domyślny czas."
           }
         }
       },
@@ -803,6 +815,10 @@
           "label": {
             "en": "Default control duration",
             "pl": "Domyślny czas sterowania"
+          },
+          "hint": {
+            "en": "Controls changes made from the device operating-mode picker. Flow action cards can still choose an explicit override.",
+            "pl": "Steruje zmianami wprowadzonymi z poziomu urządzenia przez wybór trybu pracy. Karty akcji Flow nadal mogą wybrać jawne sterowanie."
           },
           "value": "schedule",
           "values": [
@@ -895,6 +911,20 @@
       "setable": false,
       "uiComponent": "sensor"
     },
+    "measure_vasco_mode": {
+      "type": "number",
+      "title": {
+        "en": "Operating mode number",
+        "pl": "Numer trybu pracy"
+      },
+      "min": 1,
+      "max": 7,
+      "step": 1,
+      "decimals": 0,
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor"
+    },
     "vasco_bypass": {
       "type": "number",
       "title": {
@@ -958,8 +988,8 @@
     "vasco_fireplace": {
       "type": "boolean",
       "title": {
-        "en": "Fireplace mode",
-        "pl": "Tryb kominka"
+        "en": "Fireplace mode active",
+        "pl": "Tryb kominka aktywny"
       },
       "titleTrue": {
         "en": "Fireplace mode enabled",
@@ -970,8 +1000,8 @@
         "pl": "Tryb kominka wyłączony"
       },
       "getable": true,
-      "setable": true,
-      "uiComponent": "toggle"
+      "setable": false,
+      "uiComponent": "sensor"
     },
     "vasco_mode": {
       "type": "enum",
