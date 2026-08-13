@@ -26,8 +26,6 @@ const requiredCapabilities = [
   'alarm_defrost',
   'alarm_rf',
   'button.test_connection',
-  'button.enable_fireplace',
-  'button.stop_fireplace',
   'measure_vasco_mode',
 ];
 
@@ -137,8 +135,8 @@ test('custom capabilities have complete bilingual UI metadata', () => {
   ]);
   const controlStateIndex = requiredCapabilities.indexOf('vasco_control_state');
   assert.equal(requiredCapabilities[controlStateIndex + 1], 'vasco_control_duration');
-  assert.equal(fireplace.setable, false);
-  assert.equal(fireplace.uiComponent, 'sensor');
+  assert.equal(fireplace.setable, true);
+  assert.equal(fireplace.uiComponent, 'toggle');
   assert.equal(duration.type, 'enum');
   assert.equal(duration.getable, true);
   assert.equal(duration.setable, true);
@@ -182,35 +180,16 @@ test('test connection derives from the system button as a maintenance action', (
   assert.equal(typeof action.desc.pl, 'string');
 });
 
-test('Fireplace enable derives from the system button as an explicit control', () => {
+test('Fireplace status is a setable custom toggle without legacy buttons', () => {
   const driver = readJson('drivers', 'vasco-kermi-x', 'driver.compose.json');
-  const capabilityId = 'button.enable_fireplace';
-  const action = driver.capabilitiesOptions[capabilityId];
+  const fireplace = readJson('.homeycompose', 'capabilities', 'vasco_fireplace.json');
 
-  assert.ok(driver.capabilities.includes(capabilityId));
-  assert.equal(capabilityId.split('.')[0], 'button');
-  assert.equal(
-    existsSync(join(root, '.homeycompose', 'capabilities', 'button.json')),
-    false,
-    'system button must not be overridden by an app capability',
-  );
-  assert.equal(typeof action.title.en, 'string');
-  assert.equal(typeof action.title.pl, 'string');
-  assert.equal(typeof action.desc.en, 'string');
-  assert.equal(typeof action.desc.pl, 'string');
-});
-
-test('Fireplace picker precedes its enable and stop controls', () => {
-  const driver = readJson('drivers', 'vasco-kermi-x', 'driver.compose.json');
-  const stop = driver.capabilitiesOptions['button.stop_fireplace'];
-  const picker = driver.capabilities.indexOf('vasco_fireplace_duration');
-
-  assert.ok(picker < driver.capabilities.indexOf('button.enable_fireplace'));
-  assert.ok(picker < driver.capabilities.indexOf('button.stop_fireplace'));
-  assert.equal(typeof stop.title.en, 'string');
-  assert.equal(typeof stop.title.pl, 'string');
-  assert.equal(typeof stop.desc.en, 'string');
-  assert.equal(typeof stop.desc.pl, 'string');
+  assert.equal(fireplace.getable, true);
+  assert.equal(fireplace.setable, true);
+  assert.equal(fireplace.uiComponent, 'toggle');
+  assert.equal(driver.capabilities.includes('vasco_fireplace'), true);
+  assert.equal(driver.capabilities.includes('button.enable_fireplace'), false);
+  assert.equal(driver.capabilities.includes('button.stop_fireplace'), false);
 });
 
 test('Fireplace Flow action preserves explicit whole-minute durations and bilingual labels', () => {

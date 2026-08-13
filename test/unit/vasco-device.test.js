@@ -158,17 +158,15 @@ test('device contract migration adds the missing controls and changes the pre-re
   await device.ensureDeviceContract();
 
   assert.deepEqual(device.capabilityAdds, [
-    'button.enable_fireplace',
     'measure_vasco_mode',
     'vasco_fireplace_duration',
-    'button.stop_fireplace',
     'vasco_control_duration',
   ]);
   assert.deepEqual(device.settingsWrites, [
     { default_duration_type: 'schedule' },
   ]);
   assert.deepEqual(device.capabilityWrites, [['vasco_fireplace_duration', '5']]);
-  assert.equal(device.store.device_contract_version, 4);
+  assert.equal(device.store.device_contract_version, 5);
 });
 
 test('Fireplace duration migration upgrades version one with the nearest supported picker value', async () => {
@@ -183,11 +181,11 @@ test('Fireplace duration migration upgrades version one with the nearest support
 
   assert.deepEqual(device.capabilityAdds, [
     'vasco_fireplace_duration',
-    'button.stop_fireplace',
     'vasco_control_duration',
   ]);
+  assert.deepEqual(device.capabilityRemovals, ['button.enable_fireplace']);
   assert.deepEqual(device.capabilityWrites, [['vasco_fireplace_duration', '45']]);
-  assert.equal(device.store.device_contract_version, 4);
+  assert.equal(device.store.device_contract_version, 5);
 });
 
 test('Fireplace duration migration defaults missing legacy duration to five minutes', async () => {
@@ -199,7 +197,7 @@ test('Fireplace duration migration defaults missing legacy duration to five minu
   await device.ensureDeviceContract();
 
   assert.deepEqual(device.capabilityWrites, [['vasco_fireplace_duration', '5']]);
-  assert.equal(device.store.device_contract_version, 4);
+  assert.equal(device.store.device_contract_version, 5);
 });
 
 test('control duration migration upgrades version two and preserves the Fireplace picker', async () => {
@@ -221,20 +219,22 @@ test('control duration migration upgrades version two and preserves the Fireplac
   assert.deepEqual(device.settingsWrites, []);
   assert.deepEqual(device.capabilityWrites, []);
   assert.deepEqual(device.capabilityAdds, ['vasco_control_duration']);
-  assert.deepEqual(device.capabilityRemovals, ['measure_fireplace_remaining']);
-  assert.deepEqual(device.storeWrites, [{ key: 'device_contract_version', value: 4 }]);
+  assert.deepEqual(device.capabilityRemovals, [
+    'measure_fireplace_remaining',
+    'button.enable_fireplace',
+    'button.stop_fireplace',
+  ]);
+  assert.deepEqual(device.storeWrites, [{ key: 'device_contract_version', value: 5 }]);
   assert.equal(device.getCapabilityValue('vasco_fireplace_duration'), '20');
 });
 
-test('device contract version four preserves existing capabilities and values', async () => {
+test('device contract version five preserves existing capabilities and values', async () => {
   const { device } = createHarness();
-  device.store.device_contract_version = 4;
+  device.store.device_contract_version = 5;
   device.capabilities.set('vasco_control_duration', 'permanent');
   for (const capability of [
-    'button.enable_fireplace',
     'measure_vasco_mode',
     'vasco_fireplace_duration',
-    'button.stop_fireplace',
     'vasco_control_duration',
   ]) device.availableCapabilities.add(capability);
 
@@ -254,7 +254,26 @@ test('device contract version four removes legacy Fireplace session state', asyn
   await device.ensureDeviceContract();
   assert.equal(device.hasCapability('measure_fireplace_remaining'), false);
   assert.equal(device.getStoreValue('fireplace_session'), null);
-  assert.equal(device.getStoreValue('device_contract_version'), 4);
+  assert.equal(device.getStoreValue('device_contract_version'), 5);
+});
+
+test('device contract version five removes legacy Fireplace buttons', async () => {
+  const { device } = createHarness();
+  device.store.device_contract_version = 4;
+  for (const capability of [
+    'vasco_fireplace',
+    'vasco_fireplace_duration',
+    'button.enable_fireplace',
+    'button.stop_fireplace',
+  ]) device.availableCapabilities.add(capability);
+
+  await device.ensureDeviceContract();
+
+  assert.equal(device.hasCapability('button.enable_fireplace'), false);
+  assert.equal(device.hasCapability('button.stop_fireplace'), false);
+  assert.equal(device.hasCapability('vasco_fireplace'), true);
+  assert.equal(device.hasCapability('vasco_fireplace_duration'), true);
+  assert.equal(device.getStoreValue('device_contract_version'), 5);
 });
 
 test('device contract migration completes before account acquisition and listener registration', async () => {
@@ -297,14 +316,12 @@ test('device contract migration completes before account acquisition and listene
   await device.onInit();
 
   assert.deepEqual(operations.slice(0, operations.indexOf('acquire') + 1), [
-    'add:button.enable_fireplace',
     'add:measure_vasco_mode',
     'add:vasco_fireplace_duration',
-    'add:button.stop_fireplace',
     'add:vasco_control_duration',
     'settings',
     'capability:vasco_fireplace_duration:5',
-    'store:device_contract_version:4',
+    'store:device_contract_version:5',
     'acquire',
   ]);
   assert.ok(operations.indexOf('listener:vasco_mode') > operations.indexOf('acquire'));

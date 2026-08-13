@@ -18,12 +18,10 @@ const { controlDurationValue } = require('../../lib/vasco-control-duration');
 const DEFAULT_POLL_INTERVAL = 60;
 const DEFAULT_MODE_MINUTES = 60;
 const DEFAULT_FIREPLACE_MINUTES = 5;
-const DEVICE_CONTRACT_VERSION = 4;
+const DEVICE_CONTRACT_VERSION = 5;
 const DEVICE_CONTRACT_CAPABILITIES = [
-  'button.enable_fireplace',
   'measure_vasco_mode',
   'vasco_fireplace_duration',
-  'button.stop_fireplace',
   'vasco_control_duration',
 ];
 const SETTINGS_UNCHANGED_MESSAGE =
@@ -144,6 +142,11 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       if (this.getStoreValue('fireplace_session') !== null
         && this.getStoreValue('fireplace_session') !== undefined) {
         await this.unsetStoreValue('fireplace_session');
+      }
+    }
+    if (version < 5) {
+      for (const capability of ['button.enable_fireplace', 'button.stop_fireplace']) {
+        if (this.hasCapability(capability)) await this.removeCapability(capability);
       }
     }
     await this.setStoreValue('device_contract_version', DEVICE_CONTRACT_VERSION);

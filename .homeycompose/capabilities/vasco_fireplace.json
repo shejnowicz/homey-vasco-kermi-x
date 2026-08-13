@@ -13,6 +13,6 @@
     "pl": "Tryb kominka wyłączony"
   },
   "getable": true,
-  "setable": false,
-  "uiComponent": "sensor"
+  "setable": true,
+  "uiComponent": "toggle"
 }

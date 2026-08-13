@@ -744,8 +744,6 @@
         "alarm_defrost",
         "alarm_rf",
         "button.test_connection",
-        "button.enable_fireplace",
-        "button.stop_fireplace",
         "measure_vasco_mode"
       ],
       "capabilitiesOptions": {
@@ -776,26 +774,6 @@
           "desc": {
             "en": "Check whether the saved Vasco credentials can connect to the cloud service.",
             "pl": "Sprawdź, czy zapisane dane Vasco umożliwiają połączenie z usługą chmurową."
-          }
-        },
-        "button.enable_fireplace": {
-          "title": {
-            "en": "Enable Fireplace mode",
-            "pl": "Włącz tryb kominka"
-          },
-          "desc": {
-            "en": "Enable Fireplace mode for the configured default duration.",
-            "pl": "Włącz tryb kominka na skonfigurowany domyślny czas."
-          }
-        },
-        "button.stop_fireplace": {
-          "title": {
-            "en": "Stop Fireplace mode",
-            "pl": "Zatrzymaj tryb kominka"
-          },
-          "desc": {
-            "en": "Stop Fireplace mode and return to normal ventilation control.",
-            "pl": "Zatrzymaj tryb kominka i wróć do normalnego sterowania wentylacją."
           }
         }
       },
@@ -1079,8 +1057,8 @@
         "pl": "Tryb kominka wyłączony"
       },
       "getable": true,
-      "setable": false,
-      "uiComponent": "sensor"
+      "setable": true,
+      "uiComponent": "toggle"
     },
     "vasco_fireplace_duration": {
       "type": "enum",
