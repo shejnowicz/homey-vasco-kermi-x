@@ -1,4 +1,4 @@
-const { readFileSync } = require('node:fs');
+const { existsSync, readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
@@ -23,7 +23,7 @@ const requiredCapabilities = [
   'alarm_generic',
   'alarm_defrost',
   'alarm_rf',
-  'vasco_test_connection',
+  'button.test_connection',
 ];
 
 const requiredSettings = [
@@ -78,7 +78,6 @@ test('custom capabilities have complete bilingual UI metadata', () => {
     'alarm_filter',
     'alarm_defrost',
     'alarm_rf',
-    'vasco_test_connection',
   ];
 
   for (const id of capabilityIds) {
@@ -109,15 +108,23 @@ test('custom capabilities have complete bilingual UI metadata', () => {
   assert.ok(diagnostics.every(capability => capability.getable && !capability.setable));
 });
 
-test('test connection is only a stateless maintenance action', () => {
+test('test connection derives from the system button as a maintenance action', () => {
   const driver = readJson('drivers', 'vasco-kermi-x', 'driver.compose.json');
-  const button = readJson('.homeycompose', 'capabilities', 'vasco_test_connection.json');
-  const action = driver.capabilitiesOptions.vasco_test_connection;
+  const capabilityId = 'button.test_connection';
+  const action = driver.capabilitiesOptions[capabilityId];
 
-  assert.equal(button.type, 'boolean');
-  assert.equal(button.uiComponent, 'button');
-  assert.equal(button.getable, false);
-  assert.equal(button.setable, true);
+  assert.ok(driver.capabilities.includes(capabilityId));
+  assert.equal(capabilityId.split('.')[0], 'button');
+  assert.equal(
+    existsSync(join(root, '.homeycompose', 'capabilities', 'button.json')),
+    false,
+    'system button must not be overridden by an app capability',
+  );
+  assert.equal(
+    existsSync(join(root, '.homeycompose', 'capabilities', 'vasco_test_connection.json')),
+    false,
+    'legacy custom test-connection capability must be removed',
+  );
   assert.equal(action.maintenanceAction, true);
   assert.equal(typeof action.title.en, 'string');
   assert.equal(typeof action.title.pl, 'string');

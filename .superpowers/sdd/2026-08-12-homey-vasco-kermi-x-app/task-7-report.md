@@ -48,3 +48,19 @@ connection-test maintenance action.
 - Homey's build process excludes `*.compose.json` from the bundle; the
   driver-local README is therefore required until runtime driver files are
   added in later tasks.
+
+## Fix round 1/5 — system-derived maintenance action
+
+- RED: the focused manifest suite failed 2/3 after changing its contract to
+  require `button.test_connection`; the driver still exposed
+  `vasco_test_connection` and its app-specific capability definition remained.
+- GREEN: the driver now uses the Homey system capability instance
+  `button.test_connection`, keyed identically in `capabilitiesOptions` with
+  `maintenanceAction: true` and complete English/Polish title and description.
+  The obsolete custom capability file was removed, so the button inherits the
+  system capability's stateless behavior and is hidden from the normal device
+  view by Homey.
+- Verification: the focused suite passed 3/3, `npm test` passed 50/50,
+  `homey app build` succeeded, and `git diff --check` passed.
+- Runtime handling of `button.test_connection` remains intentionally deferred
+  to the dedicated device-runtime task.

@@ -47,7 +47,7 @@
         "alarm_generic",
         "alarm_defrost",
         "alarm_rf",
-        "vasco_test_connection"
+        "button.test_connection"
       ],
       "capabilitiesOptions": {
         "measure_temperature.indoor": {
@@ -68,7 +68,7 @@
             "pl": "Usterka"
           }
         },
-        "vasco_test_connection": {
+        "button.test_connection": {
           "maintenanceAction": true,
           "title": {
             "en": "Test connection",
@@ -400,16 +400,6 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor"
-    },
-    "vasco_test_connection": {
-      "type": "boolean",
-      "title": {
-        "en": "Test connection",
-        "pl": "Test połączenia"
-      },
-      "getable": false,
-      "setable": true,
-      "uiComponent": "button"
     }
   }
 }
