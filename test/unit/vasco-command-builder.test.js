@@ -5,6 +5,7 @@ const { MODES } = require('../../lib/vasco-modes');
 const {
   buildFireplaceEnableCommand,
   buildModeCommand,
+  isFireplaceEnableCommand,
   isFireplaceConfirmed,
   isModeConfirmed,
 } = require('../../lib/vasco-command-builder');
@@ -156,6 +157,15 @@ test('buildFireplaceEnableCommand preserves unknown fields and sets the validate
       RangeError,
     );
   }
+});
+
+test('isFireplaceEnableCommand accepts only validated Fireplace enable commands', () => {
+  assert.equal(isFireplaceEnableCommand(buildFireplaceEnableCommand(rawDevice, { minutes: 45 })), true);
+  assert.equal(isFireplaceEnableCommand(buildModeCommand(rawDevice, {
+    mode: 'high',
+    duration: { type: 'permanent' },
+  })), false);
+  assert.equal(isFireplaceEnableCommand({ ...rawDevice, fireplaceModeStatus: 1, fireplaceModeTime: 1.5 }), false);
 });
 
 test('confirmation helpers match observed mapped state', () => {

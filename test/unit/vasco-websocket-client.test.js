@@ -102,3 +102,75 @@ test('sends Vasco account sync and shifted mode code as binary WebSocket frames'
   await write;
   assert.equal(socket.closed, true);
 });
+
+test('sends Fireplace account sync and unshifted fireplaceModeTime as binary WebSocket frames', async () => {
+  let socket;
+  const client = new VascoWebSocketClient({
+    createSocket: url => {
+      socket = new FakeSocket(url);
+      return socket;
+    },
+  });
+  const raw = {
+    macAddress: 'fixture-bridge',
+    modbusAddress: 2,
+    swVersion: 26,
+    productType: 'fixture-product-type',
+    level: 2,
+    fireplaceModeStatus: 0,
+    fireplaceModeTime: 5,
+  };
+  const command = {
+    ...raw,
+    fireplaceModeStatus: 1,
+    fireplaceModeTime: 45,
+  };
+  const configuration = {
+    bridges: [{
+      macAddress: 'fixture-bridge',
+      appServerURL: 'https://appserver.example.invalid/',
+      bridgeToken: 'fixture-bridge-token',
+    }],
+  };
+
+  const write = client.writeParameter({
+    userToken: 'fixture-user-token',
+    configuration,
+    raw,
+    command,
+    parameterName: 'fireplaceModeTime',
+    value: 45,
+    expectedFunctionName: 'dataWritten',
+    expectedParameter: 'fireplaceModeTime',
+    expectedValue: 45,
+  });
+  socket.emit('open');
+  socket.emit('message', binaryMessage({ functionName: 'connectionStatus', status: 'OK' }));
+  await Promise.resolve();
+
+  assert.equal(socket.sent.length, 2);
+  assert.ok(socket.sent.every(frame => frame instanceof Uint8Array));
+  const [sync, writeData] = socket.sent.map(frame => JSON.parse(new TextDecoder().decode(frame)));
+  assert.deepEqual(sync, {
+    functionName: 'accountPropertiesChanged',
+    itemName: 'deviceProperties',
+    mustSyncOtherApps: true,
+    payload: JSON.stringify([command]),
+  });
+  assert.deepEqual(writeData, {
+    functionName: 'writeData',
+    parameterName: 'fireplaceModeTime',
+    data: 45,
+    modbusAddress: 2,
+    swVersion: 26,
+    productType: 'fixture-product-type',
+  });
+
+  socket.emit('message', binaryMessage({
+    functionName: 'dataWritten',
+    parameterName: 'fireplaceModeTime',
+    value: 45,
+  }));
+  await write;
+  assert.equal(socket.closed, true);
+});

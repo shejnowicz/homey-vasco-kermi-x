@@ -9,6 +9,7 @@ const {
   VascoTransportError,
 } = require('../../lib/vasco-errors');
 const { discoverVentilationDevices } = require('../../lib/vasco-device-mapper');
+const { buildFireplaceEnableCommand } = require('../../lib/vasco-command-builder');
 
 const EMAIL = 'owner@example.invalid';
 const PASSWORD = 'correct-horse-fixture';
@@ -467,6 +468,45 @@ test('holiday and guest modes keep their unshifted Vasco WebSocket codes', async
   }
 
   assert.deepEqual(physicalWrites.map(write => write.value), [6, 7]);
+});
+
+test('Fireplace command writes fireplaceModeTime through the Vasco WebSocket without shifting minutes', async () => {
+  const physicalWrites = [];
+  const restWrites = [];
+  let reads = 0;
+  const confirmedConfiguration = structuredClone(fixture);
+  confirmedConfiguration.deviceProperties[0].fireplaceModeStatus = 1;
+  confirmedConfiguration.deviceProperties[0].fireplaceModeTime = 45;
+  const apiClient = {
+    login: async () => OLD_TOKEN,
+    getAccountConfiguration: async () => {
+      reads += 1;
+      return reads === 1 ? fixture : confirmedConfiguration;
+    },
+    setDeviceProperties: async (token, [command]) => restWrites.push({ token, command }),
+    writeDeviceParameter: async options => physicalWrites.push(options),
+  };
+  const service = createService(apiClient);
+
+  const state = await service.executeDeviceCommand(
+    KITCHEN.identity,
+    raw => buildFireplaceEnableCommand(raw, { minutes: 45 }),
+    observed => observed.fireplaceModeStatus === 1 && observed.fireplaceModeTime === 45,
+  );
+
+  assert.equal(restWrites.length, 1);
+  assert.equal(restWrites[0].token, OLD_TOKEN);
+  assert.equal(restWrites[0].command.fireplaceModeStatus, 1);
+  assert.equal(restWrites[0].command.fireplaceModeTime, 45);
+  assert.equal(physicalWrites.length, 1);
+  assert.equal(physicalWrites[0].parameterName, 'fireplaceModeTime');
+  assert.equal(physicalWrites[0].value, 45);
+  assert.equal(physicalWrites[0].expectedFunctionName, 'dataWritten');
+  assert.equal(physicalWrites[0].expectedParameter, 'fireplaceModeTime');
+  assert.equal(physicalWrites[0].expectedValue, 45);
+  assert.equal(state.fireplaceModeStatus, 1);
+  assert.equal(state.fireplaceModeTime, 45);
+  assert.equal(reads, 1);
 });
 
 test('WebSocket acknowledgement returns the requested mode before REST catches up', async () => {
