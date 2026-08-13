@@ -26,11 +26,14 @@ An intended Flow is:
 
 ## State derivation
 
-A focused pure mapper derives the Homey value from Vasco state:
+A focused pure mapper derives the Homey value from Vasco's
+`manualSettingActiveTill` field. Physical X500 verification showed that
+`controlMode` can remain `schedule` for all three duration forms, so it is not
+used to classify the duration:
 
-- `controlMode === "schedule"` and `manualSettingActiveTill === 0` maps to `until_schedule`;
+- `manualSettingActiveTill === 0` maps to `until_schedule`;
 - `manualSettingActiveTill === -1` maps to `permanent`;
-- `controlMode === "manual"` and a future `manualSettingActiveTill` timestamp maps to `timed`.
+- a future `manualSettingActiveTill` timestamp maps to `timed`.
 
 Malformed, contradictory, or expired values map to `null`. A `null` mapping is not written over the last valid Homey capability value, and the Flow condition evaluates to false for an unavailable or unknown value. The normal Vasco polling and command-confirmation paths update the capability; this feature does not invent a local expiry transition because the mode to which a timed command returns is owned by Vasco.
 

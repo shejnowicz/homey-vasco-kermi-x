@@ -7,25 +7,30 @@ const { controlDurationValue } = require('../../lib/vasco-control-duration');
 
 const NOW_MS = 1_700_000_000_000;
 
-test('maps schedule, permanent, and future timed Vasco control states', () => {
+test('maps zero, permanent, and future timed Vasco control deadlines', () => {
   assert.equal(controlDurationValue({
     controlMode: 'schedule', manualSettingActiveTill: 0,
+  }, NOW_MS), 'until_schedule');
+  assert.equal(controlDurationValue({
+    controlMode: 'manual', manualSettingActiveTill: 0,
   }, NOW_MS), 'until_schedule');
   assert.equal(controlDurationValue({
     controlMode: 'manual', manualSettingActiveTill: -1,
   }, NOW_MS), 'permanent');
   assert.equal(controlDurationValue({
+    controlMode: 'schedule', manualSettingActiveTill: -1,
+  }, NOW_MS), 'permanent');
+  assert.equal(controlDurationValue({
     controlMode: 'manual', manualSettingActiveTill: NOW_MS + 1,
+  }, NOW_MS), 'timed');
+  assert.equal(controlDurationValue({
+    controlMode: 'schedule', manualSettingActiveTill: NOW_MS + 1,
   }, NOW_MS), 'timed');
 });
 
 test('returns null for unknown, contradictory, and expired control states', () => {
   for (const state of [
     {},
-    { controlMode: 'other', manualSettingActiveTill: 0 },
-    { controlMode: 'manual', manualSettingActiveTill: 0 },
-    { controlMode: 'schedule', manualSettingActiveTill: -1 },
-    { controlMode: 'schedule', manualSettingActiveTill: NOW_MS + 1 },
     { controlMode: 'manual', manualSettingActiveTill: NOW_MS },
   ]) assert.equal(controlDurationValue(state, NOW_MS), null);
 });

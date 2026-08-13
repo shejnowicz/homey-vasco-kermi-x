@@ -16,6 +16,7 @@
 - Unknown, contradictory, malformed, or expired upstream state maps to `null` and does not overwrite the last valid capability value.
 - Edit Homey Compose sources only; never edit generated `app.json` directly.
 - Use `this.homey.*` timers if a timer becomes necessary; this design requires no new timer.
+- Physical X500 verification supersedes the original Task 1 examples: derive all three values from `manualSettingActiveTill` alone because `controlMode` can remain `schedule` for Permanent and Timed states.
 
 ---
 
