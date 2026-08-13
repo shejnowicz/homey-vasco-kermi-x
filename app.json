@@ -688,12 +688,15 @@
         "vasco_control_state",
         "vasco_override_end",
         "vasco_fireplace",
+        "vasco_fireplace_duration",
+        "measure_fireplace_remaining",
         "alarm_filter",
         "alarm_generic",
         "alarm_defrost",
         "alarm_rf",
         "button.test_connection",
         "button.enable_fireplace",
+        "button.stop_fireplace",
         "measure_vasco_mode"
       ],
       "capabilitiesOptions": {
@@ -734,6 +737,16 @@
           "desc": {
             "en": "Enable Fireplace mode for the configured default duration.",
             "pl": "Włącz tryb kominka na skonfigurowany domyślny czas."
+          }
+        },
+        "button.stop_fireplace": {
+          "title": {
+            "en": "Stop Fireplace mode",
+            "pl": "Zatrzymaj tryb kominka"
+          },
+          "desc": {
+            "en": "Stop Fireplace mode and return to normal ventilation control.",
+            "pl": "Zatrzymaj tryb kominka i wróć do normalnego sterowania wentylacją."
           }
         }
       },
@@ -860,22 +873,6 @@
             "en": "minutes",
             "pl": "minuty"
           }
-        },
-        {
-          "id": "default_fireplace_minutes",
-          "type": "number",
-          "label": {
-            "en": "Default fireplace duration",
-            "pl": "Domyślny czas trybu kominka"
-          },
-          "value": 5,
-          "min": 1,
-          "max": 1440,
-          "step": 1,
-          "units": {
-            "en": "minutes",
-            "pl": "minuty"
-          }
         }
       ]
     }
@@ -907,6 +904,24 @@
         "en": "RF communication problem",
         "pl": "Problem z komunikacją RF"
       },
+      "getable": true,
+      "setable": false,
+      "uiComponent": "sensor"
+    },
+    "measure_fireplace_remaining": {
+      "type": "number",
+      "title": {
+        "en": "Fireplace time remaining",
+        "pl": "Pozostały czas trybu kominka"
+      },
+      "units": {
+        "en": "minutes",
+        "pl": "minuty"
+      },
+      "min": 0,
+      "max": 85,
+      "step": 1,
+      "decimals": 0,
       "getable": true,
       "setable": false,
       "uiComponent": "sensor"
@@ -1002,6 +1017,137 @@
       "getable": true,
       "setable": false,
       "uiComponent": "sensor"
+    },
+    "vasco_fireplace_duration": {
+      "type": "enum",
+      "title": {
+        "en": "Fireplace duration",
+        "pl": "Czas trwania trybu kominka"
+      },
+      "getable": true,
+      "setable": true,
+      "uiComponent": "picker",
+      "values": [
+        {
+          "id": "5",
+          "title": {
+            "en": "5 minutes",
+            "pl": "5 minut"
+          }
+        },
+        {
+          "id": "10",
+          "title": {
+            "en": "10 minutes",
+            "pl": "10 minut"
+          }
+        },
+        {
+          "id": "15",
+          "title": {
+            "en": "15 minutes",
+            "pl": "15 minut"
+          }
+        },
+        {
+          "id": "20",
+          "title": {
+            "en": "20 minutes",
+            "pl": "20 minut"
+          }
+        },
+        {
+          "id": "25",
+          "title": {
+            "en": "25 minutes",
+            "pl": "25 minut"
+          }
+        },
+        {
+          "id": "30",
+          "title": {
+            "en": "30 minutes",
+            "pl": "30 minut"
+          }
+        },
+        {
+          "id": "35",
+          "title": {
+            "en": "35 minutes",
+            "pl": "35 minut"
+          }
+        },
+        {
+          "id": "40",
+          "title": {
+            "en": "40 minutes",
+            "pl": "40 minut"
+          }
+        },
+        {
+          "id": "45",
+          "title": {
+            "en": "45 minutes",
+            "pl": "45 minut"
+          }
+        },
+        {
+          "id": "50",
+          "title": {
+            "en": "50 minutes",
+            "pl": "50 minut"
+          }
+        },
+        {
+          "id": "55",
+          "title": {
+            "en": "55 minutes",
+            "pl": "55 minut"
+          }
+        },
+        {
+          "id": "60",
+          "title": {
+            "en": "60 minutes",
+            "pl": "60 minut"
+          }
+        },
+        {
+          "id": "65",
+          "title": {
+            "en": "65 minutes",
+            "pl": "65 minut"
+          }
+        },
+        {
+          "id": "70",
+          "title": {
+            "en": "70 minutes",
+            "pl": "70 minut"
+          }
+        },
+        {
+          "id": "75",
+          "title": {
+            "en": "75 minutes",
+            "pl": "75 minut"
+          }
+        },
+        {
+          "id": "80",
+          "title": {
+            "en": "80 minutes",
+            "pl": "80 minut"
+          }
+        },
+        {
+          "id": "85",
+          "title": {
+            "en": "85 minutes",
+            "pl": "85 minut"
+          }
+        }
+      ]
     },
     "vasco_mode": {
       "type": "enum",
