@@ -188,9 +188,10 @@ test('Fireplace duration migration defaults missing legacy duration to five minu
 
 test('Fireplace duration migration preserves the picker after version two', async () => {
   const { device } = createHarness({
-    settings: { default_fireplace_minutes: 85, vasco_fireplace_duration: '20' },
+    settings: { default_fireplace_minutes: 85 },
   });
   device.store.device_contract_version = 2;
+  device.capabilities.set('vasco_fireplace_duration', '20');
   for (const capability of [
     'button.enable_fireplace',
     'measure_vasco_mode',
@@ -204,7 +205,7 @@ test('Fireplace duration migration preserves the picker after version two', asyn
   assert.deepEqual(device.settingsWrites, []);
   assert.deepEqual(device.capabilityWrites, []);
   assert.deepEqual(device.storeWrites, []);
-  assert.equal(device.getSettings().vasco_fireplace_duration, '20');
+  assert.equal(device.getCapabilityValue('vasco_fireplace_duration'), '20');
 });
 
 test('device contract migration completes before account acquisition and listener registration', async () => {
