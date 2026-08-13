@@ -8,6 +8,7 @@
   "platforms": [
     "local"
   ],
+  "brandColor": "#254F5D",
   "name": {
     "en": "Vasco/Kermi X Series",
     "pl": "Vasco/Kermi seria X"
@@ -19,20 +20,644 @@
   "author": {
     "name": "Seweryn Hejnowicz"
   },
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "tags": {
+    "en": [
+      "ventilation",
+      "air quality",
+      "heat recovery"
+    ],
+    "pl": [
+      "wentylacja",
+      "jakość powietrza",
+      "rekuperacja"
+    ]
+  },
+  "source": "https://github.com/shejnowicz/homey-vasco-kermi-x",
+  "homepage": "https://github.com/shejnowicz/homey-vasco-kermi-x",
+  "support": "https://github.com/shejnowicz/homey-vasco-kermi-x/issues",
+  "bugs": {
+    "url": "https://github.com/shejnowicz/homey-vasco-kermi-x/issues"
+  },
   "category": [
     "climate"
   ],
   "permissions": [],
+  "flow": {
+    "triggers": [
+      {
+        "title": {
+          "en": "Device became available",
+          "pl": "Urządzenie stało się dostępne"
+        },
+        "titleFormatted": {
+          "en": "Device became available",
+          "pl": "Urządzenie stało się dostępne"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "device_became_available"
+      },
+      {
+        "title": {
+          "en": "Device became unavailable",
+          "pl": "Urządzenie stało się niedostępne"
+        },
+        "titleFormatted": {
+          "en": "Device became unavailable",
+          "pl": "Urządzenie stało się niedostępne"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "device_became_unavailable"
+      },
+      {
+        "title": {
+          "en": "Fault appeared",
+          "pl": "Pojawiła się usterka"
+        },
+        "titleFormatted": {
+          "en": "Fault appeared",
+          "pl": "Pojawiła się usterka"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "fault_appeared"
+      },
+      {
+        "title": {
+          "en": "Fault cleared",
+          "pl": "Usterka została usunięta"
+        },
+        "titleFormatted": {
+          "en": "Fault was cleared",
+          "pl": "Usterka została usunięta"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "fault_cleared"
+      },
+      {
+        "title": {
+          "en": "Filter warning appeared",
+          "pl": "Pojawiło się ostrzeżenie filtra"
+        },
+        "titleFormatted": {
+          "en": "Filter warning appeared",
+          "pl": "Pojawiło się ostrzeżenie filtra"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "filter_warning_appeared"
+      },
+      {
+        "title": {
+          "en": "Fireplace mode disabled",
+          "pl": "Wyłączono tryb kominka"
+        },
+        "titleFormatted": {
+          "en": "Fireplace mode was disabled",
+          "pl": "Wyłączono tryb kominka"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "fireplace_disabled"
+      },
+      {
+        "title": {
+          "en": "Fireplace mode enabled",
+          "pl": "Włączono tryb kominka"
+        },
+        "titleFormatted": {
+          "en": "Fireplace mode was enabled",
+          "pl": "Włączono tryb kominka"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "fireplace_enabled"
+      },
+      {
+        "title": {
+          "en": "Operating mode changed",
+          "pl": "Zmieniono tryb pracy"
+        },
+        "titleFormatted": {
+          "en": "Operating mode changed",
+          "pl": "Zmieniono tryb pracy"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "tokens": [
+          {
+            "name": "previous_mode",
+            "type": "string",
+            "title": {
+              "en": "Previous mode",
+              "pl": "Poprzedni tryb"
+            }
+          },
+          {
+            "name": "new_mode",
+            "type": "string",
+            "title": {
+              "en": "New mode",
+              "pl": "Nowy tryb"
+            }
+          }
+        ],
+        "id": "mode_changed"
+      }
+    ],
+    "conditions": [
+      {
+        "title": {
+          "en": "Defrost",
+          "pl": "Odszranianie"
+        },
+        "titleFormatted": {
+          "en": "Defrost !{{is|isn't}} active",
+          "pl": "Odszranianie !{{jest|nie jest}} aktywne"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "defrost_active"
+      },
+      {
+        "title": {
+          "en": "Fault",
+          "pl": "Usterka"
+        },
+        "titleFormatted": {
+          "en": "Device !{{has|doesn't have}} a fault",
+          "pl": "Urządzenie !{{ma|nie ma}} usterki"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "fault_present"
+      },
+      {
+        "title": {
+          "en": "Filter attention",
+          "pl": "Uwaga dotycząca filtra"
+        },
+        "titleFormatted": {
+          "en": "Filter !{{requires|doesn't require}} attention",
+          "pl": "Filtr !{{wymaga|nie wymaga}} uwagi"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "filter_attention"
+      },
+      {
+        "title": {
+          "en": "Fireplace mode",
+          "pl": "Tryb kominka"
+        },
+        "titleFormatted": {
+          "en": "Fireplace mode !{{is|isn't}} active",
+          "pl": "Tryb kominka !{{jest|nie jest}} aktywny"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "fireplace_is_active"
+      },
+      {
+        "title": {
+          "en": "Manual override",
+          "pl": "Ręczne sterowanie"
+        },
+        "titleFormatted": {
+          "en": "Manual override !{{is|isn't}} active",
+          "pl": "Ręczne sterowanie !{{jest|nie jest}} aktywne"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "manual_override_is_active"
+      },
+      {
+        "title": {
+          "en": "Operating mode",
+          "pl": "Tryb pracy"
+        },
+        "titleFormatted": {
+          "en": "Operating mode !{{is|isn't}} [[mode]]",
+          "pl": "Tryb pracy !{{to|nie jest}} [[mode]]"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          },
+          {
+            "name": "mode",
+            "type": "dropdown",
+            "title": {
+              "en": "Operating mode",
+              "pl": "Tryb pracy"
+            },
+            "values": [
+              {
+                "id": "low",
+                "title": {
+                  "en": "Low",
+                  "pl": "Niski"
+                }
+              },
+              {
+                "id": "medium",
+                "title": {
+                  "en": "Medium",
+                  "pl": "Średni"
+                }
+              },
+              {
+                "id": "high",
+                "title": {
+                  "en": "High",
+                  "pl": "Wysoki"
+                }
+              },
+              {
+                "id": "auto",
+                "title": {
+                  "en": "Auto",
+                  "pl": "Auto"
+                }
+              },
+              {
+                "id": "holidays",
+                "title": {
+                  "en": "Holidays",
+                  "pl": "Urlop"
+                }
+              },
+              {
+                "id": "guests",
+                "title": {
+                  "en": "Guests",
+                  "pl": "Goście"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "mode_is"
+      }
+    ],
+    "actions": [
+      {
+        "title": {
+          "en": "Enable Fireplace mode",
+          "pl": "Włącz tryb kominka"
+        },
+        "titleFormatted": {
+          "en": "Enable Fireplace mode for [[minutes]] minutes",
+          "pl": "Włącz tryb kominka na [[minutes]] minut"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          },
+          {
+            "name": "minutes",
+            "type": "number",
+            "title": {
+              "en": "Minutes",
+              "pl": "Minuty"
+            },
+            "min": 1,
+            "max": 1440
+          }
+        ],
+        "id": "enable_fireplace_for_minutes"
+      },
+      {
+        "title": {
+          "en": "Refresh state",
+          "pl": "Odśwież stan"
+        },
+        "titleFormatted": {
+          "en": "Refresh state",
+          "pl": "Odśwież stan"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          }
+        ],
+        "id": "refresh_state"
+      },
+      {
+        "title": {
+          "en": "Set operating mode",
+          "pl": "Ustaw tryb pracy"
+        },
+        "titleFormatted": {
+          "en": "Set operating mode to [[mode]] for [[minutes]] minutes",
+          "pl": "Ustaw tryb pracy na [[mode]] na [[minutes]] minut"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          },
+          {
+            "name": "mode",
+            "type": "dropdown",
+            "title": {
+              "en": "Operating mode",
+              "pl": "Tryb pracy"
+            },
+            "values": [
+              {
+                "id": "low",
+                "title": {
+                  "en": "Low",
+                  "pl": "Niski"
+                }
+              },
+              {
+                "id": "medium",
+                "title": {
+                  "en": "Medium",
+                  "pl": "Średni"
+                }
+              },
+              {
+                "id": "high",
+                "title": {
+                  "en": "High",
+                  "pl": "Wysoki"
+                }
+              },
+              {
+                "id": "auto",
+                "title": {
+                  "en": "Auto",
+                  "pl": "Auto"
+                }
+              },
+              {
+                "id": "holidays",
+                "title": {
+                  "en": "Holidays",
+                  "pl": "Urlop"
+                }
+              },
+              {
+                "id": "guests",
+                "title": {
+                  "en": "Guests",
+                  "pl": "Goście"
+                }
+              }
+            ]
+          },
+          {
+            "name": "minutes",
+            "type": "number",
+            "title": {
+              "en": "Minutes",
+              "pl": "Minuty"
+            },
+            "min": 1,
+            "max": 1440
+          }
+        ],
+        "id": "set_mode_for_minutes"
+      },
+      {
+        "title": {
+          "en": "Set operating mode",
+          "pl": "Ustaw tryb pracy"
+        },
+        "titleFormatted": {
+          "en": "Set operating mode to [[mode]] permanently",
+          "pl": "Ustaw tryb pracy na [[mode]] na stałe"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          },
+          {
+            "name": "mode",
+            "type": "dropdown",
+            "title": {
+              "en": "Operating mode",
+              "pl": "Tryb pracy"
+            },
+            "values": [
+              {
+                "id": "low",
+                "title": {
+                  "en": "Low",
+                  "pl": "Niski"
+                }
+              },
+              {
+                "id": "medium",
+                "title": {
+                  "en": "Medium",
+                  "pl": "Średni"
+                }
+              },
+              {
+                "id": "high",
+                "title": {
+                  "en": "High",
+                  "pl": "Wysoki"
+                }
+              },
+              {
+                "id": "auto",
+                "title": {
+                  "en": "Auto",
+                  "pl": "Auto"
+                }
+              },
+              {
+                "id": "holidays",
+                "title": {
+                  "en": "Holidays",
+                  "pl": "Urlop"
+                }
+              },
+              {
+                "id": "guests",
+                "title": {
+                  "en": "Guests",
+                  "pl": "Goście"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "set_mode_permanent"
+      },
+      {
+        "title": {
+          "en": "Set operating mode",
+          "pl": "Ustaw tryb pracy"
+        },
+        "titleFormatted": {
+          "en": "Set operating mode to [[mode]] until the next schedule change",
+          "pl": "Ustaw tryb pracy na [[mode]] do następnej zmiany harmonogramu"
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          },
+          {
+            "name": "mode",
+            "type": "dropdown",
+            "title": {
+              "en": "Operating mode",
+              "pl": "Tryb pracy"
+            },
+            "values": [
+              {
+                "id": "low",
+                "title": {
+                  "en": "Low",
+                  "pl": "Niski"
+                }
+              },
+              {
+                "id": "medium",
+                "title": {
+                  "en": "Medium",
+                  "pl": "Średni"
+                }
+              },
+              {
+                "id": "high",
+                "title": {
+                  "en": "High",
+                  "pl": "Wysoki"
+                }
+              },
+              {
+                "id": "auto",
+                "title": {
+                  "en": "Auto",
+                  "pl": "Auto"
+                }
+              },
+              {
+                "id": "holidays",
+                "title": {
+                  "en": "Holidays",
+                  "pl": "Urlop"
+                }
+              },
+              {
+                "id": "guests",
+                "title": {
+                  "en": "Guests",
+                  "pl": "Goście"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "set_mode_until_schedule"
+      }
+    ]
+  },
   "drivers": [
     {
       "name": {
         "en": "Vasco/Kermi X Series Ventilation Unit",
         "pl": "Centrala wentylacyjna Vasco/Kermi serii X"
       },
-      "class": "sensor",
+      "class": "fan",
       "connectivity": [
         "cloud"
       ],
+      "images": {
+        "small": "/drivers/vasco-kermi-x/assets/images/small.png",
+        "large": "/drivers/vasco-kermi-x/assets/images/large.png",
+        "xlarge": "/drivers/vasco-kermi-x/assets/images/xlarge.png"
+      },
       "pair": [
         {
           "id": "login",
