@@ -739,7 +739,6 @@
         "vasco_override_end",
         "vasco_fireplace",
         "vasco_fireplace_duration",
-        "measure_fireplace_remaining",
         "alarm_filter",
         "alarm_generic",
         "alarm_defrost",
@@ -954,24 +953,6 @@
         "en": "RF communication problem",
         "pl": "Problem z komunikacją RF"
       },
-      "getable": true,
-      "setable": false,
-      "uiComponent": "sensor"
-    },
-    "measure_fireplace_remaining": {
-      "type": "number",
-      "title": {
-        "en": "Fireplace time remaining",
-        "pl": "Pozostały czas trybu kominka"
-      },
-      "units": {
-        "en": "minutes",
-        "pl": "minuty"
-      },
-      "min": 0,
-      "max": 85,
-      "step": 1,
-      "decimals": 0,
       "getable": true,
       "setable": false,
       "uiComponent": "sensor"

@@ -21,7 +21,6 @@ const requiredCapabilities = [
   'vasco_override_end',
   'vasco_fireplace',
   'vasco_fireplace_duration',
-  'measure_fireplace_remaining',
   'alarm_filter',
   'alarm_generic',
   'alarm_defrost',
@@ -77,6 +76,11 @@ test('Homey Compose manifest exposes the Vasco device contract', () => {
   }
 });
 
+test('Fireplace controls omit the unsupported remaining-time capability', () => {
+  const driver = readJson('drivers', 'vasco-kermi-x', 'driver.compose.json');
+  assert.equal(driver.capabilities.includes('measure_fireplace_remaining'), false);
+});
+
 test('custom capabilities have complete bilingual UI metadata', () => {
   const capabilityIds = [
     'vasco_mode',
@@ -108,7 +112,6 @@ test('custom capabilities have complete bilingual UI metadata', () => {
   );
   const fireplace = readJson('.homeycompose', 'capabilities', 'vasco_fireplace.json');
   const duration = readJson('.homeycompose', 'capabilities', 'vasco_fireplace_duration.json');
-  const remaining = readJson('.homeycompose', 'capabilities', 'measure_fireplace_remaining.json');
   const modeNumber = readJson('.homeycompose', 'capabilities', 'measure_vasco_mode.json');
   const diagnostics = [
     'vasco_supply_fan',
@@ -142,14 +145,6 @@ test('custom capabilities have complete bilingual UI metadata', () => {
   assert.equal(duration.uiComponent, 'picker');
   const minutes = Array.from({ length: 17 }, (_, index) => (index + 1) * 5);
   assert.deepEqual(duration.values.map(value => Number(value.id)), minutes);
-  assert.equal(remaining.type, 'number');
-  assert.equal(remaining.getable, true);
-  assert.equal(remaining.setable, false);
-  assert.equal(remaining.min, 0);
-  assert.equal(remaining.max, 85);
-  assert.equal(remaining.step, 1);
-  assert.equal(remaining.decimals, 0);
-  assert.deepEqual(remaining.units, { en: 'minutes', pl: 'minuty' });
   assert.equal(modeNumber.type, 'number');
   assert.equal(modeNumber.getable, true);
   assert.equal(modeNumber.setable, false);

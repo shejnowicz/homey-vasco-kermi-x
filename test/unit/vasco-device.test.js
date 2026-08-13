@@ -161,7 +161,6 @@ test('device contract migration adds the missing controls and changes the pre-re
     'button.enable_fireplace',
     'measure_vasco_mode',
     'vasco_fireplace_duration',
-    'measure_fireplace_remaining',
     'button.stop_fireplace',
     'vasco_control_duration',
   ]);
@@ -169,7 +168,7 @@ test('device contract migration adds the missing controls and changes the pre-re
     { default_duration_type: 'schedule' },
   ]);
   assert.deepEqual(device.capabilityWrites, [['vasco_fireplace_duration', '5']]);
-  assert.equal(device.store.device_contract_version, 3);
+  assert.equal(device.store.device_contract_version, 4);
 });
 
 test('Fireplace duration migration upgrades version one with the nearest supported picker value', async () => {
@@ -184,12 +183,11 @@ test('Fireplace duration migration upgrades version one with the nearest support
 
   assert.deepEqual(device.capabilityAdds, [
     'vasco_fireplace_duration',
-    'measure_fireplace_remaining',
     'button.stop_fireplace',
     'vasco_control_duration',
   ]);
   assert.deepEqual(device.capabilityWrites, [['vasco_fireplace_duration', '45']]);
-  assert.equal(device.store.device_contract_version, 3);
+  assert.equal(device.store.device_contract_version, 4);
 });
 
 test('Fireplace duration migration defaults missing legacy duration to five minutes', async () => {
@@ -201,7 +199,7 @@ test('Fireplace duration migration defaults missing legacy duration to five minu
   await device.ensureDeviceContract();
 
   assert.deepEqual(device.capabilityWrites, [['vasco_fireplace_duration', '5']]);
-  assert.equal(device.store.device_contract_version, 3);
+  assert.equal(device.store.device_contract_version, 4);
 });
 
 test('control duration migration upgrades version two and preserves the Fireplace picker', async () => {
@@ -223,19 +221,19 @@ test('control duration migration upgrades version two and preserves the Fireplac
   assert.deepEqual(device.settingsWrites, []);
   assert.deepEqual(device.capabilityWrites, []);
   assert.deepEqual(device.capabilityAdds, ['vasco_control_duration']);
-  assert.deepEqual(device.storeWrites, [{ key: 'device_contract_version', value: 3 }]);
+  assert.deepEqual(device.capabilityRemovals, ['measure_fireplace_remaining']);
+  assert.deepEqual(device.storeWrites, [{ key: 'device_contract_version', value: 4 }]);
   assert.equal(device.getCapabilityValue('vasco_fireplace_duration'), '20');
 });
 
-test('device contract version three preserves existing capabilities and values', async () => {
+test('device contract version four preserves existing capabilities and values', async () => {
   const { device } = createHarness();
-  device.store.device_contract_version = 3;
+  device.store.device_contract_version = 4;
   device.capabilities.set('vasco_control_duration', 'permanent');
   for (const capability of [
     'button.enable_fireplace',
     'measure_vasco_mode',
     'vasco_fireplace_duration',
-    'measure_fireplace_remaining',
     'button.stop_fireplace',
     'vasco_control_duration',
   ]) device.availableCapabilities.add(capability);
@@ -246,6 +244,17 @@ test('device contract version three preserves existing capabilities and values',
   assert.deepEqual(device.capabilityWrites, []);
   assert.deepEqual(device.storeWrites, []);
   assert.equal(device.getCapabilityValue('vasco_control_duration'), 'permanent');
+});
+
+test('device contract version four removes legacy Fireplace session state', async () => {
+  const { device } = createHarness({
+    capabilities: ['measure_fireplace_remaining'],
+    store: { device_contract_version: 3, fireplace_session: { version: 1 } },
+  });
+  await device.ensureDeviceContract();
+  assert.equal(device.hasCapability('measure_fireplace_remaining'), false);
+  assert.equal(device.getStoreValue('fireplace_session'), null);
+  assert.equal(device.getStoreValue('device_contract_version'), 4);
 });
 
 test('device contract migration completes before account acquisition and listener registration', async () => {
@@ -291,12 +300,11 @@ test('device contract migration completes before account acquisition and listene
     'add:button.enable_fireplace',
     'add:measure_vasco_mode',
     'add:vasco_fireplace_duration',
-    'add:measure_fireplace_remaining',
     'add:button.stop_fireplace',
     'add:vasco_control_duration',
     'settings',
     'capability:vasco_fireplace_duration:5',
-    'store:device_contract_version:3',
+    'store:device_contract_version:4',
     'acquire',
   ]);
   assert.ok(operations.indexOf('listener:vasco_mode') > operations.indexOf('acquire'));
@@ -406,6 +414,8 @@ function createHarness({
   settings,
   app,
   clock = new FakeClock(),
+  capabilities = [],
+  store = {},
 } = {}) {
   const transitions = [];
   const transitionApp = app ?? {
@@ -415,6 +425,8 @@ function createHarness({
   };
   const registry = new AccountRegistryDouble(service);
   const device = new VascoDevice().configure({ settings, app: transitionApp, clock });
+  for (const capability of capabilities) device.availableCapabilities.add(capability);
+  Object.assign(device.store, store);
   device.getAccountRegistry = () => registry;
   device.getNow = () => clock.now();
   return {
