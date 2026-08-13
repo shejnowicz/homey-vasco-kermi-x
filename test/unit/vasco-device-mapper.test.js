@@ -133,7 +133,6 @@ test('rejects empty or wrongly typed required identity and state fields', () => 
     ['controlMode', 1],
     ['level', Number.NaN],
     ['requestedLevel', '3'],
-    ['requestedLevel', undefined],
     ['requestedLevel', Number.NaN],
     ['requestedLevel', Number.POSITIVE_INFINITY],
     ['fanSpeedInlet', Number.POSITIVE_INFINITY],
@@ -147,6 +146,14 @@ test('rejects empty or wrongly typed required identity and state fields', () => 
       `${field} should be rejected`,
     );
   }
+});
+
+test('accepts a device when Vasco omits optional requestedLevel after a write', () => {
+  const device = realX500Shape();
+  delete device.requestedLevel;
+
+  assert.doesNotThrow(() => assertSupportedDevice(device));
+  assert.equal(toDeviceState(device).requestedMode, device.level);
 });
 
 test('maps known state properties and represents absent optional temperatures as null', () => {

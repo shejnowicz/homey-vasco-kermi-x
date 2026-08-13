@@ -208,12 +208,38 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     try {
       const state = await this.accountService.executeDeviceCommand(
         this.identity,
-        raw => buildModeCommand(raw, request),
-        observed => isModeConfirmed(observed, request),
+        (raw) => {
+          const command = buildModeCommand(raw, request);
+          this.log('Vasco mode command shape', {
+            keys: Object.keys(command).sort(),
+            payloadLength: JSON.stringify([command]).length,
+            level: command.level,
+            requestedLevel: command.requestedLevel,
+            nextParameter: command.nextParameter,
+            nextValue: command.nextValue,
+            controlMode: command.controlMode,
+            manualSettingActiveTill: command.manualSettingActiveTill,
+            remainingTimeTemporaryOverride: command.remainingTimeTemporaryOverride,
+          });
+          return command;
+        },
+        (observed) => {
+          const confirmed = isModeConfirmed(observed, request);
+          if (!confirmed) {
+            this.log('Vasco mode confirmation pending', {
+              requestedMode: observed.requestedMode,
+              effectiveMode: observed.mode,
+              controlMode: observed.controlMode,
+              manualSettingActiveTill: observed.manualSettingActiveTill,
+            });
+          }
+          return confirmed;
+        },
       );
       await this.applyState(state, { initial: false });
       return true;
-    } catch {
+    } catch (error) {
+      this.error('Vasco mode command failed', diagnosticError(error));
       await this.restoreObservedState();
       throw new Error('Vasco did not confirm the requested operating mode.');
     }
@@ -232,7 +258,8 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       );
       await this.applyState(state, { initial: false });
       return true;
-    } catch {
+    } catch (error) {
+      this.error('Vasco Fireplace command failed', diagnosticError(error));
       await this.restoreObservedState();
       throw new Error('Vasco did not confirm Fireplace mode.');
     }
@@ -683,4 +710,13 @@ function availabilityMessage(error) {
     return 'Vasco authentication failed. Update the account credentials.';
   }
   return 'The Vasco cloud service is temporarily unavailable.';
+}
+
+function diagnosticError(error) {
+  return {
+    name: typeof error?.name === 'string' ? error.name : 'Error',
+    message: typeof error?.message === 'string'
+      ? error.message
+      : 'Unknown Vasco command failure',
+  };
 }

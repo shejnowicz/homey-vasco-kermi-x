@@ -410,6 +410,95 @@ test('command confirmation retries while the Vasco cloud still returns stale sta
   assert.equal(reads, 4);
 });
 
+test('mode command writes the shifted requested level through the Vasco WebSocket', async () => {
+  const physicalWrites = [];
+  const configuration = {
+    ...fixture,
+    bridges: [{
+      macAddress: 'fixture-bridge',
+      appServerURL: 'https://appserver.example.invalid/',
+      bridgeToken: 'fixture-bridge-token',
+    }],
+  };
+  const apiClient = {
+    login: async () => OLD_TOKEN,
+    getAccountConfiguration: async () => configuration,
+    setDeviceProperties: async () => ({}),
+    writeDeviceParameter: async options => physicalWrites.push(options),
+  };
+  const service = createService(apiClient);
+
+  await service.executeDeviceCommand(
+    KITCHEN.identity,
+    raw => ({
+      ...raw,
+      nextParameter: 'requestedLevel',
+      nextValue: 3,
+    }),
+    () => true,
+  );
+
+  assert.equal(physicalWrites.length, 1);
+  assert.equal(physicalWrites[0].userToken, OLD_TOKEN);
+  assert.equal(physicalWrites[0].configuration, configuration);
+  assert.equal(physicalWrites[0].parameterName, 'requestedLevel');
+  assert.equal(physicalWrites[0].value, 4);
+  assert.equal(physicalWrites[0].expectedFunctionName, 'dataWritten');
+  assert.equal(physicalWrites[0].expectedParameter, 'requestedLevel');
+  assert.equal(physicalWrites[0].expectedValue, 4);
+});
+
+test('holiday and guest modes keep their unshifted Vasco WebSocket codes', async () => {
+  const physicalWrites = [];
+  const apiClient = {
+    login: async () => OLD_TOKEN,
+    getAccountConfiguration: async () => fixture,
+    setDeviceProperties: async () => ({}),
+    writeDeviceParameter: async options => physicalWrites.push(options),
+  };
+  const service = createService(apiClient);
+
+  for (const value of [6, 7]) {
+    await service.executeDeviceCommand(
+      KITCHEN.identity,
+      raw => ({ ...raw, nextParameter: 'requestedLevel', nextValue: value }),
+      () => true,
+    );
+  }
+
+  assert.deepEqual(physicalWrites.map(write => write.value), [6, 7]);
+});
+
+test('WebSocket acknowledgement returns the requested mode before REST catches up', async () => {
+  const writeAcknowledged = deferred();
+  const apiClient = {
+    login: async () => OLD_TOKEN,
+    getAccountConfiguration: async () => fixture,
+    setDeviceProperties: async () => ({}),
+    writeDeviceParameter: async () => writeAcknowledged.resolve(),
+  };
+  const service = createService(apiClient);
+
+  const command = service.executeDeviceCommand(
+    KITCHEN.identity,
+    raw => ({
+      ...raw,
+      requestedLevel: undefined,
+      nextParameter: 'requestedLevel',
+      nextValue: 4,
+      manualSettingActiveTill: -1,
+    }),
+    observed => observed.mode === 4 && observed.manualSettingActiveTill === -1,
+  );
+  await writeAcknowledged.promise;
+  await settle();
+  assert.equal(service.clock.nextDelay(), null);
+  const state = await command;
+
+  assert.equal(state.mode, 4);
+  assert.equal(state.manualSettingActiveTill, -1);
+});
+
 test('polling waits for the configured interval, does not overlap, and reports availability only on transitions', async () => {
   const clock = new FakeClock();
   const slowRead = deferred();

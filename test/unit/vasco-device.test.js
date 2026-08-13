@@ -324,7 +324,7 @@ test('the mode picker uses the configured default duration and applies confirmed
   assert.equal(service.commands.length, 1);
   assert.equal(service.commands[0].identity, KITCHEN_ID);
   assert.deepEqual(service.commands[0].command, {
-    ...fixture.deviceProperties[0],
+    ...withoutRequestedLevel(fixture.deviceProperties[0]),
     nextParameter: 'requestedLevel',
     nextValue: 4,
     controlMode: 'manual',
@@ -332,6 +332,12 @@ test('the mode picker uses the configured default duration and applies confirmed
   });
   assert.equal(device.capabilities.get('vasco_mode'), 'auto');
 });
+
+function withoutRequestedLevel(device) {
+  const clone = structuredClone(device);
+  delete clone.requestedLevel;
+  return clone;
+}
 
 test('the Fireplace switch sends the configured enable duration and applies confirmation immediately', async () => {
   const { device, service } = createHarness({

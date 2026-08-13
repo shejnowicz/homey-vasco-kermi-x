@@ -51,6 +51,7 @@ test('login serializes the Vasco nested credentials payload and returns its toke
   assert.equal(loginRequest.url, `${API_BASE_URL}login`);
   assert.equal(loginRequest.method, 'POST');
   assert.equal(loginRequest.headers['content-type'], 'application/json');
+  assert.equal(loginRequest.headers['user-agent'], 'Dart/3.8 (dart:io)');
   assert.deepEqual(JSON.parse(loginRequest.body), {
     payload: JSON.stringify({ userInfo: {
       email: 'owner@example.invalid',
@@ -88,6 +89,45 @@ test('setDeviceProperties serializes a complete device array and returns its res
     userToken: 'fixture-user-token',
     payload: JSON.stringify([fixtureDevice]),
   });
+});
+
+test('setDeviceProperties accepts the Vasco success envelope without a payload', async () => {
+  const { fetchImpl } = requestRecorder({
+    ok: true,
+    status: 200,
+    json: async () => ({ status: 'success', functionName: 'setdeviceproperties' }),
+  });
+  const client = new VascoApiClient({ fetchImpl, baseUrl: API_BASE_URL });
+
+  assert.deepEqual(
+    await client.setDeviceProperties(USER_TOKEN, [fixtureDevice]),
+    {},
+  );
+});
+
+test('delegates a physical device write to the Vasco WebSocket client', async () => {
+  const writes = [];
+  const webSocketClient = {
+    writeParameter: async options => writes.push(options),
+  };
+  const client = new VascoApiClient({
+    fetchImpl: async () => successfulResponse({}),
+    webSocketClient,
+  });
+  const options = {
+    userToken: USER_TOKEN,
+    configuration: { bridges: [] },
+    raw: fixtureDevice,
+    command: { ...fixtureDevice, nextValue: 3 },
+    parameterName: 'requestedLevel',
+    value: 4,
+    expectedParameter: 'level',
+    expectedValue: 3,
+  };
+
+  await client.writeDeviceParameter(options);
+
+  assert.deepEqual(writes, [options]);
 });
 
 test('rejects an aborted request with a typed transport error', async () => {

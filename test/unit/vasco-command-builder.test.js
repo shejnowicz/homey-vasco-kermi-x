@@ -36,8 +36,9 @@ test('buildModeCommand preserves the raw object and changes only schedule comman
   assert.deepEqual(rawDevice, original);
   assert.notStrictEqual(command, rawDevice);
   assert.notStrictEqual(command.unknownCloudField, rawDevice.unknownCloudField);
+  assert.equal(Object.hasOwn(command, 'requestedLevel'), false);
   assert.deepEqual(command, {
-    ...original,
+    ...withoutRequestedLevel(original),
     nextParameter: 'requestedLevel',
     nextValue: 3,
     controlMode: 'schedule',
@@ -63,7 +64,7 @@ test('buildModeCommand encodes every supported mode as a permanent command', () 
     });
 
     assert.deepEqual(command, {
-      ...rawDevice,
+      ...withoutRequestedLevel(rawDevice),
       nextParameter: 'requestedLevel',
       nextValue: requestedLevel,
       manualSettingActiveTill: -1,
@@ -79,13 +80,19 @@ test('buildModeCommand uses literal millisecond duration math for a timed manual
   });
 
   assert.deepEqual(command, {
-    ...rawDevice,
+    ...withoutRequestedLevel(rawDevice),
     nextParameter: 'requestedLevel',
     nextValue: 4,
     controlMode: 'manual',
     manualSettingActiveTill: 1_700_001_800_000,
   });
 });
+
+function withoutRequestedLevel(device) {
+  const clone = structuredClone(device);
+  delete clone.requestedLevel;
+  return clone;
+}
 
 test('buildModeCommand rejects unsupported controller mode and invalid minute durations', () => {
   assert.throws(
@@ -153,6 +160,7 @@ test('buildFireplaceEnableCommand preserves unknown fields and sets the validate
 
 test('confirmation helpers match observed mapped state', () => {
   assert.equal(isModeConfirmed({
+    mode: 3,
     requestedMode: 3,
     controlMode: 'schedule',
     manualSettingActiveTill: 0,
@@ -161,6 +169,7 @@ test('confirmation helpers match observed mapped state', () => {
     duration: { type: 'schedule' },
   }), true);
   assert.equal(isModeConfirmed({
+    mode: 6,
     requestedMode: 6,
     controlMode: 'manual',
     manualSettingActiveTill: -1,
@@ -169,6 +178,7 @@ test('confirmation helpers match observed mapped state', () => {
     duration: { type: 'permanent' },
   }), true);
   assert.equal(isModeConfirmed({
+    mode: 4,
     requestedMode: 4,
     controlMode: 'manual',
     manualSettingActiveTill: 1_700_001_800_000,
@@ -178,6 +188,7 @@ test('confirmation helpers match observed mapped state', () => {
     nowMs: 1_700_000_000_000,
   }), true);
   assert.equal(isModeConfirmed({
+    mode: 4,
     requestedMode: 4,
     controlMode: 'schedule',
     manualSettingActiveTill: 0,
@@ -195,6 +206,7 @@ test('isModeConfirmed rejects invalid timed duration boundaries', () => {
 
   for (const minutes of [0, 1.5, 1441]) {
     assert.equal(isModeConfirmed({
+      mode: 4,
       requestedMode: 4,
       controlMode: 'manual',
       manualSettingActiveTill: nowMs + (minutes * 60_000),
