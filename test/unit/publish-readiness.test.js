@@ -13,7 +13,7 @@ test('English Store copy explains the Fireplace picker, known remaining time, an
   const description = read('README.txt');
 
   assert.match(description, /Fireplace duration.*device picker/i);
-  assert.match(description, /exact remaining time.*sessions.*Homey/i);
+  assert.match(description, /Homey shows exact remaining time only for sessions it starts/i);
   assert.match(description, /Stop restores the prior ventilation mode.*Homey/i);
   assert.doesNotMatch(description, /(?:disable command|disable Fireplace|private endpoint|reverse.engineer)/i);
 });

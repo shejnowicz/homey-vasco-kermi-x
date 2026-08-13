@@ -238,3 +238,22 @@ test('app registers Flow listeners once, delegates safely, and delivers device t
     /whole number between 1 and 1440/i,
   );
 });
+
+test('Fireplace Flow listener accepts whole boundary minutes and rejects fractions', async () => {
+  const { app, actions } = createAppHarness();
+  await app.onInit();
+  const device = createDevice();
+  const run = actions.get('enable_fireplace_for_minutes').listeners[0];
+
+  await run({ device, minutes: 1 });
+  await run({ device, minutes: 1_440 });
+  await assert.rejects(
+    () => run({ device, minutes: 1.5 }),
+    /whole number between 1 and 1440/i,
+  );
+
+  assert.deepEqual(device.calls, [
+    ['setFireplace', true, 1],
+    ['setFireplace', true, 1_440],
+  ]);
+});
