@@ -35,7 +35,13 @@ used to classify the duration:
 - `manualSettingActiveTill === -1` maps to `permanent`;
 - a future `manualSettingActiveTill` timestamp maps to `timed`.
 
-Malformed, contradictory, or expired values map to `null`. A `null` mapping is not written over the last valid Homey capability value, and the Flow condition evaluates to false for an unavailable or unknown value. The normal Vasco polling and command-confirmation paths update the capability; this feature does not invent a local expiry transition because the mode to which a timed command returns is owned by Vasco.
+Malformed or contradictory values map to `null`. An expired positive timestamp
+maps to `until_schedule` when `controlMode` reports `schedule`; other expired
+values map to `null`. A `null` mapping is not written over the last valid Homey
+capability value, and the Flow condition evaluates to false for an unavailable
+or unknown value. The normal Vasco polling and command-confirmation paths update
+the capability; this feature does not invent a local expiry transition because
+the mode to which a timed command returns is owned by Vasco.
 
 ## Compatibility and migration
 

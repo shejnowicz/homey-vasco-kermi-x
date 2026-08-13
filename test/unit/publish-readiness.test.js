@@ -46,6 +46,7 @@ for (const [filename, languagePattern] of [
 
 test('public documentation describes D/T/X scope and current Fireplace control', () => {
   const readme = read('README.md');
+  const driverReadme = read('drivers/vasco-kermi-x/README.md');
   const compatibility = read('.github/ISSUE_TEMPLATE/compatibility.yml');
   const contributing = read('CONTRIBUTING.md');
 
@@ -55,6 +56,11 @@ test('public documentation describes D/T/X scope and current Fireplace control',
   assert.match(readme, /turn.*Fireplace.*off/i);
   assert.doesNotMatch(readme, /explicit disabling is not offered/i);
   assert.doesNotMatch(readme, /exact remaining time|restores? the prior/i);
+  assert.match(driverReadme, /^# Vasco\/Kermi Ventilation driver$/m);
+  assert.match(driverReadme, /D, T and X/i);
+  assert.match(driverReadme, /verified.*X500/i);
+  assert.match(driverReadme, /runtime.*implemented/i);
+  assert.doesNotMatch(driverReadme, /X Series driver|runtime .* introduced by/i);
   assert.match(compatibility, /D, T (?:and|or) X/i);
   assert.match(contributing, /test|homey-validate|dependency-audit/i);
 });

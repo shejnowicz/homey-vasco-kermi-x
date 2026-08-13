@@ -338,6 +338,35 @@ test('a failed deferred login releases its registry reference and credentials', 
   assert.equal(registry.containsCredentials(), false);
 });
 
+test('disconnect during configuration discards the pairing result and releases its account once', async () => {
+  const registry = new DeferredAccountRegistry();
+  const { session } = createHarness({ registry });
+
+  const login = session.emit('login', { email: EMAIL, password: PASSWORD });
+  const [acquisition] = registry.acquisitions;
+
+  await session.emit('disconnect');
+  acquisition.read.resolve({
+    deviceProperties: fixture.deviceProperties.slice(0, 1),
+  });
+
+  await assert.rejects(
+    login,
+    (error) => {
+      assert.match(error.message, /sign in|credentials/i);
+      assert.doesNotMatch(error.message, new RegExp(EMAIL));
+      assert.doesNotMatch(error.message, new RegExp(PASSWORD));
+      return true;
+    },
+  );
+  await assert.rejects(session.emit('list_devices'), /sign in/i);
+  await session.emit('disconnect');
+
+  assert.deepEqual(registry.releases, [acquisition.accountKey]);
+  assert.equal(registry.active.size, 0);
+  assert.equal(registry.containsCredentials(), false);
+});
+
 test('Homey pairing uses a custom login followed by list and add templates', () => {
   const manifest = JSON.parse(readFileSync(
     join(root, 'drivers', 'vasco-kermi-x', 'driver.compose.json'),
@@ -427,6 +456,7 @@ class DeferredAccountRegistry {
   constructor() {
     this.acquisitions = [];
     this.active = new Map();
+    this.releases = [];
   }
 
   acquire(credentials) {
@@ -443,6 +473,7 @@ class DeferredAccountRegistry {
   }
 
   release(accountKey) {
+    this.releases.push(accountKey);
     return this.active.delete(accountKey);
   }
 

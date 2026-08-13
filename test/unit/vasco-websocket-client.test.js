@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { VascoWebSocketClient } = require('../../lib/vasco-websocket-client');
+const { VascoTransportError } = require('../../lib/vasco-errors');
 
 class FakeSocket {
   constructor(url) {
@@ -174,3 +175,122 @@ test('sends Fireplace account sync and unshifted fireplaceModeTime as binary Web
   await write;
   assert.equal(socket.closed, true);
 });
+
+test('send failures reject promptly with a redacted transport error and no unhandled rejection', async (t) => {
+  const privateSendFailure = new Error('private-send-token');
+  const privateCloseFailure = new Error('private-close-token');
+
+  class ThrowingSocket extends FakeSocket {
+    send() {
+      throw privateSendFailure;
+    }
+
+    close() {
+      throw privateCloseFailure;
+    }
+  }
+
+  class RejectingSocket extends FakeSocket {
+    send() {
+      return Promise.reject(privateSendFailure);
+    }
+
+    close() {
+      return Promise.reject(privateCloseFailure);
+    }
+  }
+
+  class CallbackSocket extends FakeSocket {
+    send(_data, callback) {
+      queueMicrotask(() => callback?.(privateSendFailure));
+    }
+  }
+
+  for (const [name, SocketType] of [
+    ['synchronous throw', ThrowingSocket],
+    ['rejected send promise', RejectingSocket],
+    ['callback error', CallbackSocket],
+  ]) {
+    await t.test(name, async () => {
+      const unhandled = [];
+      const onUnhandled = reason => unhandled.push(reason);
+      process.prependListener('unhandledRejection', onUnhandled);
+
+      try {
+        let socket;
+        const clock = new RecordingClock();
+        const client = new VascoWebSocketClient({
+          clock,
+          createSocket: url => {
+            socket = new SocketType(url);
+            return socket;
+          },
+        });
+        const write = writeFixture(client);
+
+        socket.emit('message', binaryMessage({
+          functionName: 'connectionStatus',
+          status: 'OK',
+        }));
+        const outcome = await Promise.race([
+          write.then(
+            () => ({ status: 'resolved' }),
+            error => ({ error, status: 'rejected' }),
+          ),
+          new Promise(resolve => setImmediate(() => resolve({ status: 'pending' }))),
+        ]);
+        await new Promise(resolve => setImmediate(resolve));
+
+        assert.equal(outcome.status, 'rejected', 'send failure must not wait for timeout');
+        assert.ok(outcome.error instanceof VascoTransportError);
+        assert.equal(outcome.error.message, 'Vasco WebSocket command failed');
+        assert.doesNotMatch(outcome.error.message, /private-(?:send|close)-token/);
+        assert.equal(clock.cleared, 1);
+        assert.deepEqual(unhandled, []);
+      } finally {
+        process.removeListener('unhandledRejection', onUnhandled);
+      }
+    });
+  }
+});
+
+class RecordingClock {
+  constructor() {
+    this.cleared = 0;
+  }
+
+  setTimeout() {
+    return Symbol('timeout');
+  }
+
+  clearTimeout() {
+    this.cleared += 1;
+  }
+}
+
+function writeFixture(client) {
+  const raw = {
+    macAddress: 'fixture-bridge',
+    modbusAddress: 2,
+    swVersion: 26,
+    productType: 'fixture-product-type',
+    level: 2,
+  };
+  return client.writeParameter({
+    userToken: 'fixture-user-token',
+    configuration: {
+      bridges: [{
+        macAddress: 'fixture-bridge',
+        appServerURL: 'https://appserver.example.invalid/',
+        bridgeToken: 'fixture-bridge-token',
+      }],
+    },
+    raw,
+    command: { ...raw, requestedLevel: 3 },
+    parameterName: 'requestedLevel',
+    value: 4,
+    expectedFunctionName: 'dataWritten',
+    expectedParameter: 'requestedLevel',
+    expectedValue: 4,
+  });
+}

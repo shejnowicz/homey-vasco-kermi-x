@@ -30,8 +30,9 @@ temporarily interrupt the app.
 
 The app polls the cloud every 60 seconds by default. You can select a 30, 60,
 120, 300, or 600 second interval in the device settings. Units on the same
-account share account-level reads, commands trigger an immediate verification
-read, and repeated failures use backoff instead of overlapping requests.
+account share account-level reads. A WebSocket acknowledgement is followed by
+polling reconciliation, and repeated failures use backoff instead of overlapping
+requests.
 
 ## Pairing
 

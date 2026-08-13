@@ -26,6 +26,7 @@ module.exports = class VascoKermiXDriver extends Homey.Driver {
     const registry = this.createPairRegistry();
     let pairState = null;
     let loginInProgress = false;
+    let disconnected = false;
 
     const clearPairState = () => {
       if (pairState === null) return;
@@ -42,10 +43,13 @@ module.exports = class VascoKermiXDriver extends Homey.Driver {
       }
     };
 
-    session.setHandler('disconnect', clearPairState);
+    session.setHandler('disconnect', () => {
+      disconnected = true;
+      clearPairState();
+    });
 
     session.setHandler('login', async (credentials) => {
-      if (loginInProgress) {
+      if (loginInProgress || disconnected) {
         throw new Error(LOGIN_ERROR);
       }
       clearPairState();
@@ -61,6 +65,9 @@ module.exports = class VascoKermiXDriver extends Homey.Driver {
       try {
         service = registry.acquire({ email, password });
         const configuration = await service.readConfiguration();
+        if (disconnected) {
+          throw new Error(LOGIN_ERROR);
+        }
         pairState = {
           accountKey: service.accountKey,
           configuration,
