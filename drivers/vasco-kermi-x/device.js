@@ -333,9 +333,42 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
           this.scheduleFireplaceSuppression();
           return false;
         }
-        await this.unsetStoreValue(FIREPLACE_SESSION_STORE_KEY);
-        if (this.deleted) return false;
+        const active = flagValue(this.lastObservedState?.fireplaceModeStatus);
+        const previous = this.getCapabilityValue('vasco_fireplace');
         this.fireplaceSession = null;
+        for (let attempt = 0; attempt < 2 && !this.deleted; attempt += 1) {
+          try {
+            await this.unsetStoreValue(FIREPLACE_SESSION_STORE_KEY);
+            break;
+          } catch (error) {
+            this.error(
+              'Vasco Fireplace suppression cleanup failed',
+              diagnosticError(error),
+            );
+          }
+        }
+        if (this.deleted) return false;
+        let localStateUpdated = Object.is(previous, active);
+        for (let attempt = 0;
+          attempt < 2 && !localStateUpdated && !this.deleted;
+          attempt += 1) {
+          try {
+            await this.setCapabilityValue('vasco_fireplace', active);
+            localStateUpdated = true;
+          } catch (error) {
+            this.error(
+              'Vasco Fireplace suppression status update failed',
+              diagnosticError(error),
+            );
+          }
+        }
+        if (this.deleted) return false;
+        if (localStateUpdated && active !== null && previous !== null
+          && !Object.is(previous, active)) {
+          await this.emitCapabilityTransitions(new Map([
+            ['vasco_fireplace', { previous, value: active }],
+          ]));
+        }
         return true;
       }
 
@@ -509,11 +542,14 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
               rollback.previous.remaining,
             );
           }
-          if (rollback.previous.session && rollback.previous.active === true
-            && !Object.hasOwn(rollback.previous.session, 'suppressUntil')) {
-            this.scheduleFireplaceCountdown(
-              remainingMinutes(rollback.previous.session, this.getNow()),
-            );
+          if (rollback.previous.session) {
+            if (Object.hasOwn(rollback.previous.session, 'suppressUntil')) {
+              this.scheduleFireplaceSuppression();
+            } else if (rollback.previous.active === true) {
+              this.scheduleFireplaceCountdown(
+                remainingMinutes(rollback.previous.session, this.getNow()),
+              );
+            }
           }
         });
       }

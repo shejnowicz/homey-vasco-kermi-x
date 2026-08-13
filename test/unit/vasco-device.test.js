@@ -885,6 +885,55 @@ test('failed Fireplace enable persistence rolls back locally without sending a c
   assert.equal(device.logged.flat().join(' ').includes('private synthetic'), false);
 });
 
+test('failed Fireplace re-enable restores a prior stopped suppression timer', async () => {
+  const secret = 'private-re-enable-response';
+  const configuration = structuredClone(fixture);
+  configuration.deviceProperties[0].fireplaceModeStatus = 1;
+  const service = new AccountServiceDouble(configuration);
+  const { device } = createHarness({ service });
+  const session = {
+    version: 1,
+    priorMode: 'high',
+    priorDuration: { type: 'schedule' },
+    selectedMinutes: 5,
+    startedAt: NOW_MS,
+    endsAt: NOW_MS + (5 * 60_000),
+  };
+  device.store.device_contract_version = 2;
+  device.store.fireplace_session = session;
+  await device.onInit();
+  await device.capabilityListeners.get('button.stop_fireplace')();
+  const stopped = structuredClone(device.fireplaceSession);
+
+  service.executeDeviceCommand = async () => {
+    throw new VascoProtocolError(`${secret}: command rejected`);
+  };
+  service.readConfiguration = async (options = {}) => {
+    service.reads.push(options);
+    throw new VascoTransportError(`${secret}: refresh unavailable`);
+  };
+
+  await assert.rejects(
+    () => device.setFireplace(true, 45),
+    { message: 'Vasco did not confirm Fireplace mode.' },
+  );
+
+  assert.deepEqual(device.fireplaceSession, stopped);
+  assert.deepEqual(device.store.fireplace_session, stopped);
+  assert.equal(device.getCapabilityValue('vasco_fireplace'), false);
+  assert.equal(device.getCapabilityValue('measure_fireplace_remaining'), null);
+  assert.equal(device.clock.timers.size, 1);
+  assert.equal([...device.clock.timers.values()][0].at, session.endsAt);
+  assert.equal(device.logged.flat().join(' ').includes(secret), false);
+
+  device.clock.advance(5 * 60_000);
+  await settle();
+
+  assert.equal(device.fireplaceSession, null);
+  assert.equal(Object.hasOwn(device.store, 'fireplace_session'), false);
+  assert.equal(device.clock.timers.size, 0);
+});
+
 test('Fireplace Stop restores permanent, schedule, and timed prior operating modes', async (t) => {
   const cases = [
     {
@@ -991,6 +1040,134 @@ test('Fireplace Stop suppression expires via its Homey timer without polling', a
   assert.deepEqual(service.reads.at(-1), { force: true });
   assert.equal(device.getCapabilityValue('vasco_fireplace'), true);
   assert.equal(device.getCapabilityValue('measure_fireplace_remaining'), null);
+});
+
+test('Fireplace Stop suppression expiry releases local status when forced refresh fails', async () => {
+  const secret = 'private-forced-refresh-response';
+  const configuration = structuredClone(fixture);
+  configuration.deviceProperties[0].fireplaceModeStatus = 1;
+  const service = new AccountServiceDouble(configuration);
+  const { clock, device } = createHarness({ service });
+  const session = {
+    version: 1,
+    priorMode: 'high',
+    priorDuration: { type: 'schedule' },
+    selectedMinutes: 5,
+    startedAt: NOW_MS,
+    endsAt: NOW_MS + (5 * 60_000),
+  };
+  device.store.device_contract_version = 2;
+  device.store.fireplace_session = session;
+  await device.onInit();
+
+  await device.capabilityListeners.get('button.stop_fireplace')();
+  await device.applyState({
+    ...toDeviceState(configuration.deviceProperties[0]),
+    fireplaceModeStatus: 1,
+  });
+  service.readConfiguration = async (options = {}) => {
+    service.reads.push(options);
+    throw new VascoTransportError(`${secret}: unavailable`);
+  };
+
+  clock.advance(5 * 60_000);
+  await settle();
+
+  assert.equal(device.fireplaceSession, null);
+  assert.equal(Object.hasOwn(device.store, 'fireplace_session'), false);
+  assert.equal(clock.timers.size, 0);
+  assert.deepEqual(service.reads.at(-1), { force: true });
+  assert.equal(device.getCapabilityValue('vasco_fireplace'), true);
+  assert.equal(device.getCapabilityValue('measure_fireplace_remaining'), null);
+  assert.equal(device.logged.flat().join(' ').includes(secret), false);
+});
+
+test('Fireplace Stop suppression expiry recovers from local cleanup and write failures', async () => {
+  const configuration = structuredClone(fixture);
+  configuration.deviceProperties[0].fireplaceModeStatus = 1;
+  const service = new AccountServiceDouble(configuration);
+  const { clock, device } = createHarness({ service });
+  const session = {
+    version: 1,
+    priorMode: 'high',
+    priorDuration: { type: 'schedule' },
+    selectedMinutes: 5,
+    startedAt: NOW_MS,
+    endsAt: NOW_MS + (5 * 60_000),
+  };
+  device.store.device_contract_version = 2;
+  device.store.fireplace_session = session;
+  await device.onInit();
+  await device.capabilityListeners.get('button.stop_fireplace')();
+  await device.applyState({
+    ...toDeviceState(configuration.deviceProperties[0]),
+    fireplaceModeStatus: 1,
+  });
+
+  let removalAttempts = 0;
+  const unsetStoreValue = device.unsetStoreValue.bind(device);
+  device.unsetStoreValue = async (key) => {
+    removalAttempts += 1;
+    if (removalAttempts === 1) throw new Error('private cleanup failure');
+    return unsetStoreValue(key);
+  };
+  let activeWriteAttempts = 0;
+  const setCapabilityValue = device.setCapabilityValue.bind(device);
+  device.setCapabilityValue = async (capability, value) => {
+    if (capability === 'vasco_fireplace' && value === true) {
+      activeWriteAttempts += 1;
+      if (activeWriteAttempts === 1) throw new Error('private capability failure');
+    }
+    return setCapabilityValue(capability, value);
+  };
+
+  clock.advance(5 * 60_000);
+  await settle();
+
+  assert.equal(removalAttempts, 2);
+  assert.equal(activeWriteAttempts, 2);
+  assert.equal(device.fireplaceSession, null);
+  assert.equal(Object.hasOwn(device.store, 'fireplace_session'), false);
+  assert.deepEqual(service.reads.at(-1), { force: true });
+  assert.equal(device.getCapabilityValue('vasco_fireplace'), true);
+  assert.equal(device.logged.flat().join(' ').includes('private'), false);
+});
+
+test('Fireplace Stop suppression expiry maps unknown raw status to null offline', async () => {
+  const secret = 'private-offline-response';
+  const service = new AccountServiceDouble();
+  service.readConfiguration = async (options = {}) => {
+    service.reads.push(options);
+    throw new VascoTransportError(`${secret}: unavailable`);
+  };
+  const { clock, device } = createHarness({ service });
+  const session = {
+    version: 1,
+    priorMode: 'high',
+    priorDuration: { type: 'schedule' },
+    selectedMinutes: 5,
+    startedAt: NOW_MS,
+    endsAt: NOW_MS + (5 * 60_000),
+  };
+  device.store.device_contract_version = 2;
+  device.store.fireplace_session = session;
+  await device.onInit();
+  const executeDeviceCommand = service.executeDeviceCommand.bind(service);
+  service.executeDeviceCommand = async (...args) => {
+    const state = await executeDeviceCommand(...args);
+    delete state.fireplaceModeStatus;
+    return state;
+  };
+  await device.capabilityListeners.get('button.stop_fireplace')();
+
+  clock.advance(5 * 60_000);
+  await settle();
+
+  assert.equal(device.fireplaceSession, null);
+  assert.equal(Object.hasOwn(device.store, 'fireplace_session'), false);
+  assert.equal(device.getCapabilityValue('vasco_fireplace'), null);
+  assert.deepEqual(service.reads.at(-1), { force: true });
+  assert.equal(device.logged.flat().join(' ').includes(secret), false);
 });
 
 test('Fireplace Stop suppresses stale active status until the deadline then resumes raw status', async () => {
