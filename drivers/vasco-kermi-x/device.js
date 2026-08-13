@@ -13,11 +13,21 @@ const {
   toDeviceState,
 } = require('../../lib/vasco-device-mapper');
 const { VascoAuthenticationError, VascoProtocolError } = require('../../lib/vasco-errors');
+const {
+  createManagedSession,
+  effectiveFireplaceState,
+  parseStoredSession,
+  remainingMinutes,
+  restorationRequest,
+  stoppedSession,
+} = require('../../lib/vasco-fireplace-session');
 const { MODES } = require('../../lib/vasco-modes');
 
 const DEFAULT_POLL_INTERVAL = 60;
 const DEFAULT_MODE_MINUTES = 60;
 const DEFAULT_FIREPLACE_MINUTES = 5;
+const FIREPLACE_SESSION_STORE_KEY = 'fireplace_session';
+const MINUTE_MS = 60_000;
 const DEVICE_CONTRACT_VERSION = 2;
 const DEVICE_CONTRACT_CAPABILITIES = [
   'button.enable_fireplace',
@@ -73,9 +83,17 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     const intervalSeconds = pollInterval(settings.poll_interval);
     this.accountService = null;
     this.stateInitialized = false;
+    this.lastObservedState = null;
     this.lastAvailability = null;
     this.stateQueue = Promise.resolve();
     this.deleted = false;
+    this.fireplaceTimer = null;
+    const storedFireplaceSession = this.getStoreValue(FIREPLACE_SESSION_STORE_KEY);
+    this.fireplaceSession = parseStoredSession(storedFireplaceSession, this.getNow());
+    if (storedFireplaceSession !== null && storedFireplaceSession !== undefined
+      && this.fireplaceSession === null) {
+      await this.unsetStoreValue(FIREPLACE_SESSION_STORE_KEY);
+    }
 
     try {
       this.accountService = this.accountRegistry.acquire({
@@ -91,6 +109,11 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
           this.getCapabilityValue('vasco_fireplace_duration'),
         ))
       ));
+      this.registerCapabilityListener('vasco_fireplace_duration', (value) => {
+        fireplaceDurationMinutes(value);
+        return true;
+      });
+      this.registerCapabilityListener('button.stop_fireplace', () => this.stopFireplace());
       this.registerCapabilityListener('button.test_connection', () => this.testConnection());
 
       try {
@@ -170,9 +193,14 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
   async applyStateNow(state, { initial = false } = {}) {
     if (this.deleted) return false;
     const changes = new Map();
+    const fireplace = Object.hasOwn(state, 'fireplaceModeStatus')
+      ? await this.reconcileFireplaceStateNow(state.fireplaceModeStatus)
+      : null;
     for (const [capability, mapValue] of CAPABILITIES) {
       if (this.deleted) return false;
-      const value = mapValue(state);
+      const value = capability === 'vasco_fireplace' && fireplace
+        ? fireplace.active
+        : mapValue(state);
       if (value === null || value === undefined) continue;
 
       const previous = this.getCapabilityValue(capability);
@@ -181,6 +209,14 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       changes.set(capability, { previous, value });
     }
 
+    if (fireplace && !Object.is(
+      this.getCapabilityValue('measure_fireplace_remaining'),
+      fireplace.remaining,
+    )) {
+      await this.setCapabilityValue('measure_fireplace_remaining', fireplace.remaining);
+    }
+
+    this.rememberObservedState(state);
     if (initial || this.deleted) return !this.deleted;
     await this.emitCapabilityTransitions(changes);
     return !this.deleted;
@@ -193,6 +229,84 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       .then(() => (this.deleted ? false : operation()));
     this.stateQueue = queued;
     return queued;
+  }
+
+  async reconcileFireplaceStateNow(rawStatus) {
+    const rawActive = flagValue(rawStatus);
+    const nowMs = this.getNow();
+    const stopped = this.fireplaceSession
+      && Object.hasOwn(this.fireplaceSession, 'suppressUntil');
+    if (this.fireplaceSession && (
+      (stopped && (rawActive === false || nowMs >= this.fireplaceSession.suppressUntil))
+      || (!stopped && nowMs >= this.fireplaceSession.endsAt)
+    )) {
+      this.clearFireplaceTimer();
+      this.fireplaceSession = null;
+      await this.unsetStoreValue(FIREPLACE_SESSION_STORE_KEY);
+    }
+
+    const active = effectiveFireplaceState(rawActive, this.fireplaceSession, nowMs);
+    if (active === true && this.fireplaceSession
+      && !Object.hasOwn(this.fireplaceSession, 'suppressUntil')) {
+      const remaining = remainingMinutes(this.fireplaceSession, nowMs);
+      this.scheduleFireplaceCountdown(remaining, nowMs);
+      return { active, remaining };
+    }
+
+    this.clearFireplaceTimer();
+    return { active, remaining: null };
+  }
+
+  rememberObservedState(state) {
+    const observed = { ...(this.lastObservedState ?? {}) };
+    for (const [key, value] of Object.entries(state)) {
+      if (value !== null && value !== undefined) observed[key] = value;
+    }
+    this.lastObservedState = observed;
+  }
+
+  scheduleFireplaceCountdown(remaining, nowMs = this.getNow()) {
+    this.clearFireplaceTimer();
+    if (!this.fireplaceSession || remaining < 1 || this.deleted) return;
+
+    const nextBoundary = this.fireplaceSession.endsAt - ((remaining - 1) * MINUTE_MS);
+    const delayMs = Math.max(1, nextBoundary - nowMs);
+    this.fireplaceTimer = this.homey.setTimeout(() => {
+      this.fireplaceTimer = null;
+      this.handleFireplaceCountdown().catch((error) => {
+        this.error('Vasco Fireplace countdown failed', diagnosticError(error));
+      });
+    }, delayMs);
+  }
+
+  async handleFireplaceCountdown() {
+    const expired = await this.enqueueState(async () => {
+      if (!this.fireplaceSession
+        || Object.hasOwn(this.fireplaceSession, 'suppressUntil')) return false;
+
+      const remaining = remainingMinutes(this.fireplaceSession, this.getNow());
+      if (!Object.is(this.getCapabilityValue('measure_fireplace_remaining'), remaining)) {
+        await this.setCapabilityValue('measure_fireplace_remaining', remaining);
+      }
+      if (this.deleted) return false;
+      if (remaining > 0) {
+        this.scheduleFireplaceCountdown(remaining);
+        return false;
+      }
+
+      this.fireplaceSession = null;
+      await this.unsetStoreValue(FIREPLACE_SESSION_STORE_KEY);
+      return true;
+    });
+
+    if (!expired || this.deleted) return;
+    await this.refreshState({ force: true, initial: false });
+  }
+
+  clearFireplaceTimer() {
+    if (this.fireplaceTimer === null || this.fireplaceTimer === undefined) return;
+    this.homey.clearTimeout(this.fireplaceTimer);
+    this.fireplaceTimer = null;
   }
 
   async emitCapabilityTransitions(changes) {
@@ -283,7 +397,24 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       throw new Error('Disabling Fireplace mode is not supported yet.');
     }
 
+    let rollback = null;
     try {
+      await this.enqueueState(async () => {
+        const previous = {
+          active: this.getCapabilityValue('vasco_fireplace'),
+          remaining: this.getCapabilityValue('measure_fireplace_remaining'),
+          session: this.fireplaceSession,
+          stored: this.getStoreValue(FIREPLACE_SESSION_STORE_KEY),
+        };
+        const session = createManagedSession(
+          this.lastObservedState,
+          fireplaceDurationMinutes(minutes),
+          this.getNow(),
+        );
+        rollback = { previous, session };
+        this.fireplaceSession = session;
+        await this.setStoreValue(FIREPLACE_SESSION_STORE_KEY, session);
+      });
       const state = await this.accountService.executeDeviceCommand(
         this.identity,
         raw => buildFireplaceEnableCommand(raw, { minutes }),
@@ -293,9 +424,85 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       return true;
     } catch (error) {
       this.error('Vasco Fireplace command failed', diagnosticError(error));
+      if (rollback) {
+        await this.enqueueState(async () => {
+          if (this.fireplaceSession !== rollback.session) return;
+
+          this.clearFireplaceTimer();
+          this.fireplaceSession = rollback.previous.session;
+          if (rollback.previous.stored === null || rollback.previous.stored === undefined) {
+            await this.unsetStoreValue(FIREPLACE_SESSION_STORE_KEY);
+          } else {
+            await this.setStoreValue(
+              FIREPLACE_SESSION_STORE_KEY,
+              rollback.previous.stored,
+            );
+          }
+          if (!Object.is(
+            this.getCapabilityValue('vasco_fireplace'),
+            rollback.previous.active,
+          )) {
+            await this.setCapabilityValue('vasco_fireplace', rollback.previous.active);
+          }
+          if (!Object.is(
+            this.getCapabilityValue('measure_fireplace_remaining'),
+            rollback.previous.remaining,
+          )) {
+            await this.setCapabilityValue(
+              'measure_fireplace_remaining',
+              rollback.previous.remaining,
+            );
+          }
+          if (rollback.previous.session && rollback.previous.active === true
+            && !Object.hasOwn(rollback.previous.session, 'suppressUntil')) {
+            this.scheduleFireplaceCountdown(
+              remainingMinutes(rollback.previous.session, this.getNow()),
+            );
+          }
+        });
+      }
       await this.restoreObservedState();
       throw new Error('Vasco did not confirm Fireplace mode.');
     }
+  }
+
+  async stopFireplace() {
+    const session = this.fireplaceSession;
+    if (!session || Object.hasOwn(session, 'suppressUntil')) {
+      throw new Error(
+        'Homey can only stop Fireplace mode sessions that were started from Homey.',
+      );
+    }
+
+    const request = restorationRequest(session, this.getNow());
+    if (!request) {
+      throw new Error(
+        'Homey can only stop Fireplace mode sessions that were started from Homey.',
+      );
+    }
+
+    await this.setOperatingMode(request.mode, request.duration);
+    await this.enqueueState(async () => {
+      if (this.fireplaceSession !== session) return false;
+
+      const stopped = stoppedSession(session);
+      this.fireplaceSession = stopped;
+      await this.setStoreValue(FIREPLACE_SESSION_STORE_KEY, stopped);
+      this.clearFireplaceTimer();
+
+      const changes = new Map();
+      const previousActive = this.getCapabilityValue('vasco_fireplace');
+      if (previousActive !== false) {
+        await this.setCapabilityValue('vasco_fireplace', false);
+        changes.set('vasco_fireplace', { previous: previousActive, value: false });
+      }
+      if (this.getCapabilityValue('measure_fireplace_remaining') !== null) {
+        await this.setCapabilityValue('measure_fireplace_remaining', null);
+      }
+      if (!this.deleted) await this.emitCapabilityTransitions(changes);
+      return true;
+    });
+    return true;
   }
 
   async restoreObservedState() {
@@ -380,11 +587,12 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
   }
 
   async onDeleted() {
+    this.clearFireplaceTimer();
+    this.deleted = true;
     const service = this.accountService;
     const registry = this.accountRegistry;
     if (!service || !registry) return;
 
-    this.deleted = true;
     const coordinator = getPollingCoordinator(service);
     unsubscribeFromPolling(service, this);
     this.accountService = null;
@@ -406,6 +614,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
   async cleanupAccountReference() {
     const service = this.accountService;
     const registry = this.accountRegistry;
+    this.clearFireplaceTimer();
     this.deleted = true;
     if (!service || !registry) return;
 
@@ -759,8 +968,6 @@ function availabilityMessage(error) {
 function diagnosticError(error) {
   return {
     name: typeof error?.name === 'string' ? error.name : 'Error',
-    message: typeof error?.message === 'string'
-      ? error.message
-      : 'Unknown Vasco command failure',
+    message: 'Vasco operation failed',
   };
 }
