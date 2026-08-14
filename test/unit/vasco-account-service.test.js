@@ -170,6 +170,52 @@ test('a command reuses the latest successful configuration snapshot', async () =
   assert.equal(reads, 1);
 });
 
+test('a confirmed mode command refreshes the snapshot used by the next command', async () => {
+  const restWrites = [];
+  const buildInputs = [];
+  const apiClient = {
+    login: async () => OLD_TOKEN,
+    getAccountConfiguration: async () => fixture,
+    setDeviceProperties: async (_token, [command]) => restWrites.push(command),
+    writeDeviceParameter: async () => {},
+  };
+  const service = createService(apiClient);
+
+  await service.executeDeviceCommand(
+    KITCHEN.identity,
+    (raw) => {
+      buildInputs.push(raw);
+      return buildModeCommand(raw, {
+        mode: 'low',
+        duration: { type: 'permanent' },
+      });
+    },
+    () => true,
+  );
+  await service.executeDeviceCommand(
+    KITCHEN.identity,
+    (raw) => {
+      buildInputs.push(raw);
+      return buildModeCommand(raw, {
+        mode: 'high',
+        duration: { type: 'permanent' },
+      });
+    },
+    () => true,
+  );
+
+  assert.deepEqual(restWrites.map(command => ({
+    level: command.level,
+    nextValue: command.nextValue,
+  })), [
+    { level: 2, nextValue: 1 },
+    { level: 1, nextValue: 3 },
+  ]);
+  assert.equal(buildInputs[1].level, 1);
+  assert.equal(Object.hasOwn(buildInputs[1], 'nextParameter'), false);
+  assert.equal(Object.hasOwn(buildInputs[1], 'nextValue'), false);
+});
+
 test('forced reads queue one new generation behind an older read and coalesce only before that generation starts', async () => {
   const reads = [deferred(), deferred(), deferred()];
   let readCalls = 0;
