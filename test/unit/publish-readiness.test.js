@@ -25,7 +25,7 @@ test('Homey Store identity uses the D/T/X community product name', () => {
     pl: 'Komfortowa rekuperacja dopasowana do rytmu domu',
   });
   assert.deepEqual(app.tags.pl, ['jakość powietrza', 'rekuperacja']);
-  assert.equal(app.version, '1.0.0');
+  assert.equal(app.version, '1.0.1');
 });
 
 test('Polish release surfaces use rekuperacja terminology', () => {
@@ -38,6 +38,13 @@ test('Polish release surfaces use rekuperacja terminology', () => {
   assert.match(store, /Połącz rekuperację Vasco i Kermi/);
   assert.match(changelog['1.0.0'].pl, /dla rekuperatorów Vasco\/Kermi/);
   assert.doesNotMatch(releaseCopy, /wentylacj|central(?:a|e|i|ą) wentylacyjn/i);
+});
+
+test('patch release documents the Flow card icon fix', () => {
+  const changelog = readJson('.homeychangelog.json');
+
+  assert.match(changelog['1.0.1'].en, /Flow card icon/i);
+  assert.match(changelog['1.0.1'].pl, /ikon.*kart(?:ach|y)? Flow/i);
 });
 
 for (const [filename, languagePattern] of [
