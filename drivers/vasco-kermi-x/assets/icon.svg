@@ -1,10 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 960" role="img" aria-label="Ventilation unit in perspective">
-  <g id="unit-perspective" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M105 180 650 80l205 125v590L310 900 105 775Z" stroke-width="60"/>
-    <path d="M650 80v595L310 900V300Z" stroke-width="52"/>
-    <path d="m105 180 205 120 545-95" stroke-width="52"/>
-    <path d="M190 370h40M190 485h40M190 600h40" stroke-width="62"/>
-    <circle cx="470" cy="630" r="138" stroke-width="56"/>
-    <path d="M470 492c54 57 68 111 36 161M608 630c-57 54-111 68-161 36M470 768c-54-57-68-111-36-161M332 630c57-54 111-68 161-36" stroke-width="48"/>
+  <g id="unit-perspective" fill="#000" fill-rule="evenodd">
+    <path d="M105 180 650 80l205 125v590L310 900 105 775Zm66 37 463-85 161 98v516l-465 89-159-96Z"/>
+    <path d="m624 120 58-11v537l-58 12Z"/>
+    <path d="m145 157 185 108 485-85 40 25-545 95-205-120Z"/>
+    <rect x="188" y="361" width="64" height="46" rx="23"/>
+    <rect x="188" y="472" width="64" height="46" rx="23"/>
+    <rect x="188" y="583" width="64" height="46" rx="23"/>
+    <path d="M470 458a172 172 0 1 1 0 344 172 172 0 0 1 0-344Zm0 54a118 118 0 1 0 0 236 118 118 0 0 0 0-236Z"/>
+    <circle cx="470" cy="630" r="30"/>
+    <path d="M470 607c-50-55-57-99-22-132 59 11 82 52 67 123l-22 26Zm23 23c55-50 99-57 132-22-11 59-52 82-123 67l-26-22Zm-23 23c50 55 57 99 22 132-59-11-82-52-67-123l22-26Zm-23-23c-55 50-99 57-132 22 11-59 52-82 123-67l26 22Z"/>
   </g>
 </svg>

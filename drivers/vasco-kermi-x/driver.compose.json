@@ -1,7 +1,7 @@
 {
   "name": {
     "en": "Vasco/Kermi D / T / X Ventilation Unit",
-    "pl": "Centrala wentylacyjna Vasco/Kermi D / T / X"
+    "pl": "Rekuperator Vasco/Kermi D / T / X"
   },
   "class": "fan",
   "connectivity": ["cloud"],

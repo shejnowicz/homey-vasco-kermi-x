@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "com.shejnowicz.vasco-kermi-x",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -11,11 +11,11 @@
   "brandColor": "#254F5D",
   "name": {
     "en": "Vasco/Kermi Ventilation",
-    "pl": "Wentylacja Vasco/Kermi"
+    "pl": "Rekuperacja Vasco/Kermi"
   },
   "description": {
     "en": "Comfortable ventilation for every Homey routine",
-    "pl": "Komfortowa wentylacja dopasowana do rytmu domu"
+    "pl": "Komfortowa rekuperacja dopasowana do rytmu domu"
   },
   "author": {
     "name": "Seweryn Hejnowicz"
@@ -32,7 +32,6 @@
       "heat recovery"
     ],
     "pl": [
-      "wentylacja",
       "jakość powietrza",
       "rekuperacja"
     ]
@@ -696,7 +695,7 @@
     {
       "name": {
         "en": "Vasco/Kermi D / T / X Ventilation Unit",
-        "pl": "Centrala wentylacyjna Vasco/Kermi D / T / X"
+        "pl": "Rekuperator Vasco/Kermi D / T / X"
       },
       "class": "fan",
       "connectivity": [

@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - The repository's protected integration branch is `main`; do not create `master`.
-- English app name is `Vasco/Kermi Ventilation`; Polish app name is `Wentylacja Vasco/Kermi`.
+- English app name is `Vasco/Kermi Ventilation`; Polish app name is `Rekuperacja Vasco/Kermi`.
 - The integration is community-maintained, uses the vendor cloud, and is physically verified only with Vasco X500.
 - Other Vasco and Kermi D/T/X models require community verification; do not claim blanket compatibility.
 - Do not claim a local Fireplace countdown, previous-mode restoration, or an unsupported Stop mechanism.
@@ -63,11 +63,11 @@ test('Homey Store identity uses the D/T/X community product name', () => {
 
   assert.deepEqual(app.name, {
     en: 'Vasco/Kermi Ventilation',
-    pl: 'Wentylacja Vasco/Kermi',
+    pl: 'Rekuperacja Vasco/Kermi',
   });
   assert.deepEqual(app.description, {
     en: 'Comfortable ventilation for every Homey routine',
-    pl: 'Komfortowa wentylacja dopasowana do rytmu domu',
+    pl: 'Komfortowa rekuperacja dopasowana do rytmu domu',
   });
   assert.equal(app.version, '0.1.0');
 });
@@ -116,11 +116,11 @@ In `.homeycompose/app.json`, keep all unrelated fields unchanged and set:
 ```json
 "name": {
   "en": "Vasco/Kermi Ventilation",
-  "pl": "Wentylacja Vasco/Kermi"
+  "pl": "Rekuperacja Vasco/Kermi"
 },
 "description": {
   "en": "Comfortable ventilation for every Homey routine",
-  "pl": "Komfortowa wentylacja dopasowana do rytmu domu"
+  "pl": "Komfortowa rekuperacja dopasowana do rytmu domu"
 }
 ```
 
@@ -133,7 +133,7 @@ Bring Vasco and Kermi D, T and X ventilation into daily Homey routines through t
 Set `README.pl.txt` to this single paragraph:
 
 ```text
-Połącz wentylację Vasco i Kermi serii D, T i X z rytmem domu przez chmurę producenta. Sprawdzaj odczyty i stan systemu, wybieraj tryby pracy oraz twórz Flow dla harmonogramów i czasowych zmian. Opracowano i przetestowano z Vasco X500; inne modele wymagają weryfikacji społeczności.
+Połącz rekuperację Vasco i Kermi serii D, T i X z rytmem domu przez chmurę producenta. Sprawdzaj odczyty i stan systemu, wybieraj tryby pracy oraz twórz Flow dla harmonogramów i czasowych zmian. Opracowano i przetestowano z Vasco X500; inne modele wymagają weryfikacji społeczności.
 ```
 
 - [ ] **Step 4: Run the focused tests and verify the release contract passes**
