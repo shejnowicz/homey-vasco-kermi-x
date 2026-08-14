@@ -24,7 +24,7 @@ test('Homey Store identity uses the D/T/X community product name', () => {
     en: 'Comfortable ventilation for every Homey routine',
     pl: 'Komfortowa wentylacja dopasowana do rytmu domu',
   });
-  assert.equal(app.version, '0.1.0');
+  assert.equal(app.version, '1.0.0');
 });
 
 for (const [filename, languagePattern] of [
