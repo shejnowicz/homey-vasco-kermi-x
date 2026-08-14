@@ -1,4 +1,8 @@
 {
+  "1.0.3": {
+    "en": "Improved command reliability with bounded retries for temporary Vasco connection failures.",
+    "pl": "Poprawiono niezawodność sterowania dzięki ograniczonym ponowieniom przy chwilowych błędach połączenia z Vasco."
+  },
   "1.0.2": {
     "en": "Clarified the gateway requirements and initial Vasco Climate Control setup.",
     "pl": "Doprecyzowano wymagania dotyczące bramki i początkowej konfiguracji Vasco Climate Control."
