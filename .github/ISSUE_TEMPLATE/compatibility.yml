@@ -23,6 +23,25 @@ body:
     validations:
       required: true
   - type: input
+    id: gateway_model
+    attributes:
+      label: Gateway model
+      description: Enter the public model name printed on the Vasco/Kermi gateway, if available.
+      placeholder: Vasco Gateway
+    validations:
+      required: true
+  - type: dropdown
+    id: official_app_status
+    attributes:
+      label: Official app status
+      description: Confirm whether the unit is visible and controllable in the Vasco Climate Control app.
+      options:
+        - Visible and controllable
+        - Visible but not controllable
+        - Not visible
+    validations:
+      required: true
+  - type: input
     id: homey_version
     attributes:
       label: Homey software version

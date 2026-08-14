@@ -7,6 +7,20 @@ The initial release is developed and tested on a Vasco X500 (`VMD-17RPS01`).
 It is the only physically verified unit; other Vasco and Kermi D, T and X units
 require community reports before they are considered supported.
 
+## Requirements
+
+- A Vasco/Kermi gateway that is powered, online, and paired with the ventilation
+  unit
+- A ventilation unit already visible and controllable in the Vasco Climate
+  Control app
+- Credentials for the same Vasco cloud account used during that setup
+- Internet access for both the gateway and Homey Pro
+
+The official app is needed for the initial gateway and ventilation-unit setup,
+but it does not need to remain open afterwards. Homey communicates with the
+vendor cloud; the cloud reaches the gateway, which communicates with the unit
+over RF.
+
 ## What it supports
 
 - Low, Medium, High, Auto, Holidays, and Guests operating modes
@@ -23,10 +37,10 @@ vendor's zero-minute command.
 
 ## Cloud dependency
 
-This integration requires internet access and a working Vasco cloud account.
-It does not communicate with the ventilation unit over the local network. Cloud
-service availability, authentication changes, or upstream API changes can
-temporarily interrupt the app.
+This integration requires an online gateway, internet access, and a working
+Vasco cloud account. It does not communicate with the ventilation unit over the
+local network. Gateway or cloud availability, authentication changes, or
+upstream API changes can temporarily interrupt the app.
 
 The app polls the cloud every 60 seconds by default. You can select a 30, 60,
 120, 300, or 600 second interval in the device settings. Units on the same
@@ -37,10 +51,12 @@ requests.
 ## Pairing
 
 1. In Homey, open Devices and choose **Add device**.
-2. Select **Vasco/Kermi Ventilation** and enter the credentials for the vendor
-   cloud account used by the ventilation unit.
-3. Select one or more compatible units from the discovered list.
-4. Open each added device and review its polling interval and default override
+2. Confirm that the gateway and ventilation unit are online and that the unit
+   can be controlled in the Vasco Climate Control app.
+3. Select **Vasco/Kermi Ventilation** and enter the credentials for the same
+   Vasco cloud account.
+4. Select one or more compatible units from the discovered list.
+5. Open each added device and review its polling interval and default override
    durations.
 
 Already-paired units are omitted from discovery. Credentials are stored in
@@ -60,8 +76,9 @@ units using the same account.
 ## Compatibility and bugs
 
 Use the repository issue forms for compatibility reports and reproducible bugs.
-Include the public product model, ventilation-unit software version, Homey
-software version, and app version.
+Include the public product and gateway models, whether the unit works in Vasco
+Climate Control, the ventilation-unit software version, Homey software version,
+and app version.
 
 Never post credentials, access tokens, account exports, raw cloud responses,
 private device identifiers, packet captures, or network captures. For security
