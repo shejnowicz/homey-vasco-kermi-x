@@ -39,6 +39,17 @@ function requestRecorder(response) {
   };
 }
 
+test('uses a four-second WebSocket timeout independently of the REST timeout', () => {
+  const client = new VascoApiClient({
+    fetchImpl: async () => {
+      throw new Error('not called');
+    },
+  });
+
+  assert.equal(client.timeoutMs, 15_000);
+  assert.equal(client.webSocketClient.timeoutMs, 4_000);
+});
+
 test('login serializes the Vasco nested credentials payload and returns its token', async () => {
   const { fetchImpl, requests } = requestRecorder(successfulResponse({ userToken: USER_TOKEN }));
   const client = new VascoApiClient({ fetchImpl, baseUrl: API_BASE_URL });

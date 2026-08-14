@@ -39,6 +39,15 @@ function binaryMessage(message) {
   return { data: new TextEncoder().encode(JSON.stringify(message)).buffer };
 }
 
+test('rejects invalid WebSocket timeout and retry limits', () => {
+  for (const timeoutMs of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(() => new VascoWebSocketClient({ timeoutMs }), RangeError);
+  }
+  for (const maxAttempts of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(() => new VascoWebSocketClient({ maxAttempts }), RangeError);
+  }
+});
+
 test('sends Vasco account sync and shifted mode code as binary WebSocket frames', async () => {
   let socket;
   const client = new VascoWebSocketClient({
