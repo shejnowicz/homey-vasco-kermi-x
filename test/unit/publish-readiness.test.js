@@ -25,7 +25,7 @@ test('Homey Store identity uses the D/T/X community product name', () => {
     pl: 'Steruj rekuperacją Vasco i Kermi połączoną przez bramkę',
   });
   assert.deepEqual(app.tags.pl, ['jakość powietrza', 'rekuperacja']);
-  assert.equal(app.version, '1.0.2');
+  assert.equal(app.version, '1.0.3');
 });
 
 test('Polish release surfaces use rekuperacja terminology', () => {
@@ -52,6 +52,13 @@ test('gateway requirements release has bilingual changelog copy', () => {
 
   assert.match(changelog['1.0.2'].en, /gateway requirements/i);
   assert.match(changelog['1.0.2'].pl, /wymagani.*bramk/i);
+});
+
+test('command retry release has bilingual changelog copy', () => {
+  const changelog = readJson('.homeychangelog.json');
+
+  assert.match(changelog['1.0.3'].en, /bounded retries/i);
+  assert.match(changelog['1.0.3'].pl, /ponowieni/i);
 });
 
 for (const [filename, languagePattern] of [
