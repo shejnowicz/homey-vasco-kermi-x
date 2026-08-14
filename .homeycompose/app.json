@@ -1,0 +1,37 @@
+{
+  "id": "com.shejnowicz.vasco-kermi-x",
+  "version": "0.1.0",
+  "compatibility": ">=12.4.0",
+  "sdk": 3,
+  "runtime": "nodejs",
+  "platforms": ["local"],
+  "brandColor": "#254F5D",
+  "name": {
+    "en": "Vasco/Kermi Ventilation",
+    "pl": "Wentylacja Vasco/Kermi"
+  },
+  "description": {
+    "en": "Comfortable ventilation for every Homey routine",
+    "pl": "Komfortowa wentylacja dopasowana do rytmu domu"
+  },
+  "author": {
+    "name": "Seweryn Hejnowicz"
+  },
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "tags": {
+    "en": ["ventilation", "air quality", "heat recovery"],
+    "pl": ["wentylacja", "jakość powietrza", "rekuperacja"]
+  },
+  "source": "https://github.com/shejnowicz/homey-vasco-kermi-x",
+  "homepage": "https://github.com/shejnowicz/homey-vasco-kermi-x",
+  "support": "https://github.com/shejnowicz/homey-vasco-kermi-x/issues",
+  "bugs": {
+    "url": "https://github.com/shejnowicz/homey-vasco-kermi-x/issues"
+  },
+  "category": ["climate"],
+  "permissions": []
+}

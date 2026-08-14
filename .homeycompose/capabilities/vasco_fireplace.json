@@ -1,0 +1,20 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Fireplace mode active",
+    "pl": "Tryb kominka aktywny"
+  },
+  "titleTrue": {
+    "en": "Fireplace mode enabled",
+    "pl": "Tryb kominka włączony"
+  },
+  "titleFalse": {
+    "en": "Fireplace mode disabled",
+    "pl": "Tryb kominka wyłączony"
+  },
+  "getable": true,
+  "setable": true,
+  "uiComponent": "toggle",
+  "uiQuickAction": true,
+  "icon": "/assets/vasco_fireplace.svg"
+}

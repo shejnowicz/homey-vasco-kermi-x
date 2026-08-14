@@ -1,0 +1,1 @@
+Połącz wentylację Vasco i Kermi serii D, T i X z rytmem domu przez chmurę producenta. Sprawdzaj odczyty i stan systemu, wybieraj tryby pracy oraz twórz Flow dla harmonogramów i czasowych zmian. Opracowano i przetestowano z Vasco X500; inne modele wymagają weryfikacji społeczności.

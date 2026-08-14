@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Filter warning",
+    "pl": "Ostrzeżenie o filtrze"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor"
+}

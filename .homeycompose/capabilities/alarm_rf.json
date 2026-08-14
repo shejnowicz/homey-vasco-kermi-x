@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "RF communication problem",
+    "pl": "Problem z komunikacją RF"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor"
+}

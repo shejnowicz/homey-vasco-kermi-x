@@ -1,0 +1,5 @@
+{
+  "title": { "en": "Fireplace mode", "pl": "Tryb kominka" },
+  "titleFormatted": { "en": "Fireplace mode !{{is|isn't}} active", "pl": "Tryb kominka !{{jest|nie jest}} aktywny" },
+  "args": [{ "name": "device", "type": "device", "filter": "driver_id=vasco-kermi-x" }]
+}

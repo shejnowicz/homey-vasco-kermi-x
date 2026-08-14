@@ -1,0 +1,17 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Supply fan speed",
+    "pl": "Prędkość nawiewu"
+  },
+  "units": {
+    "en": "%",
+    "pl": "%"
+  },
+  "min": 0,
+  "max": 100,
+  "step": 1,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor"
+}

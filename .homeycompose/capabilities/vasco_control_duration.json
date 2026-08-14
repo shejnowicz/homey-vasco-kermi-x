@@ -1,0 +1,33 @@
+{
+  "type": "enum",
+  "title": {
+    "en": "Control duration",
+    "pl": "Sposób sterowania"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "values": [
+    {
+      "id": "until_schedule",
+      "title": {
+        "en": "Until next schedule change",
+        "pl": "Do następnej zmiany harmonogramu"
+      }
+    },
+    {
+      "id": "permanent",
+      "title": {
+        "en": "Permanent",
+        "pl": "Na stałe"
+      }
+    },
+    {
+      "id": "timed",
+      "title": {
+        "en": "Timed",
+        "pl": "Czasowo"
+      }
+    }
+  ]
+}

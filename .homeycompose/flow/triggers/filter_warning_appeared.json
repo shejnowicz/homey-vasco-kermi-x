@@ -1,0 +1,5 @@
+{
+  "title": { "en": "Filter warning appeared", "pl": "Pojawiło się ostrzeżenie filtra" },
+  "titleFormatted": { "en": "Filter warning appeared", "pl": "Pojawiło się ostrzeżenie filtra" },
+  "args": [{ "name": "device", "type": "device", "filter": "driver_id=vasco-kermi-x" }]
+}

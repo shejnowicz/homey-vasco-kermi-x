@@ -1,0 +1,60 @@
+name: Bug report
+description: Report reproducible behaviour in the Homey app.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not attach credentials, account data, private identifiers, API output, or network traffic. Use the private security channel for vulnerabilities.
+  - type: input
+    id: model
+    attributes:
+      label: Product model
+      placeholder: Vasco X500
+    validations:
+      required: true
+  - type: input
+    id: unit_version
+    attributes:
+      label: Ventilation-unit software version
+    validations:
+      required: true
+  - type: input
+    id: homey_version
+    attributes:
+      label: Homey software version
+    validations:
+      required: true
+  - type: input
+    id: app_version
+    attributes:
+      label: App version
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the Homey actions that reliably produce the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Public-data confirmation
+      options:
+        - label: I removed private account and device information from this report.
+          required: true

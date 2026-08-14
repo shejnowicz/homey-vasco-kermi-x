@@ -1,0 +1,48 @@
+{
+  "title": {
+    "en": "Control duration",
+    "pl": "Sposób sterowania"
+  },
+  "titleFormatted": {
+    "en": "Control duration !{{is|isn't}} [[duration]]",
+    "pl": "Sposób sterowania !{{to|nie jest}} [[duration]]"
+  },
+  "args": [
+    {
+      "name": "device",
+      "type": "device",
+      "filter": "driver_id=vasco-kermi-x"
+    },
+    {
+      "name": "duration",
+      "type": "dropdown",
+      "title": {
+        "en": "Control duration",
+        "pl": "Sposób sterowania"
+      },
+      "values": [
+        {
+          "id": "until_schedule",
+          "title": {
+            "en": "Until next schedule change",
+            "pl": "Do następnej zmiany harmonogramu"
+          }
+        },
+        {
+          "id": "permanent",
+          "title": {
+            "en": "Permanent",
+            "pl": "Na stałe"
+          }
+        },
+        {
+          "id": "timed",
+          "title": {
+            "en": "Timed",
+            "pl": "Czasowo"
+          }
+        }
+      ]
+    }
+  ]
+}

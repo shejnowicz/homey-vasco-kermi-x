@@ -1,0 +1,5 @@
+{
+  "title": { "en": "Fault", "pl": "Usterka" },
+  "titleFormatted": { "en": "Device !{{has|doesn't have}} a fault", "pl": "Urządzenie !{{ma|nie ma}} usterki" },
+  "args": [{ "name": "device", "type": "device", "filter": "driver_id=vasco-kermi-x" }]
+}

@@ -1,0 +1,5 @@
+{
+  "title": { "en": "Fault cleared", "pl": "Usterka została usunięta" },
+  "titleFormatted": { "en": "Fault was cleared", "pl": "Usterka została usunięta" },
+  "args": [{ "name": "device", "type": "device", "filter": "driver_id=vasco-kermi-x" }]
+}

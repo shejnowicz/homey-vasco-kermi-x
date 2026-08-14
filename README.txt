@@ -1,0 +1,1 @@
+Bring Vasco and Kermi D, T and X ventilation into daily Homey routines through the vendor cloud. View readings and system status, choose operating modes and build Flows for schedules or temporary overrides. Developed and tested with Vasco X500; other models need community verification.

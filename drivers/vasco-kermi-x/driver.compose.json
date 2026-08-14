@@ -1,0 +1,66 @@
+{
+  "name": {
+    "en": "Vasco/Kermi D / T / X Ventilation Unit",
+    "pl": "Centrala wentylacyjna Vasco/Kermi D / T / X"
+  },
+  "class": "fan",
+  "connectivity": ["cloud"],
+  "images": {
+    "small": "/drivers/vasco-kermi-x/assets/images/small.png",
+    "large": "/drivers/vasco-kermi-x/assets/images/large.png",
+    "xlarge": "/drivers/vasco-kermi-x/assets/images/xlarge.png"
+  },
+  "pair": [
+    {
+      "id": "login"
+    },
+    {
+      "id": "list_devices",
+      "template": "list_devices",
+      "navigation": { "prev": "login", "next": "add_devices" }
+    },
+    {
+      "id": "add_devices",
+      "template": "add_devices",
+      "navigation": { "prev": "list_devices" }
+    }
+  ],
+  "capabilities": [
+    "vasco_mode",
+    "measure_temperature.indoor",
+    "measure_temperature.outdoor",
+    "vasco_supply_fan",
+    "vasco_exhaust_fan",
+    "vasco_bypass",
+    "vasco_control_state",
+    "vasco_control_duration",
+    "vasco_override_end",
+    "vasco_fireplace",
+    "vasco_fireplace_duration",
+    "alarm_filter",
+    "alarm_generic",
+    "alarm_defrost",
+    "alarm_rf",
+    "button.test_connection",
+    "measure_vasco_mode"
+  ],
+  "capabilitiesOptions": {
+    "measure_temperature.indoor": {
+      "title": { "en": "Indoor temperature", "pl": "Temperatura wewnętrzna" }
+    },
+    "measure_temperature.outdoor": {
+      "title": { "en": "Outdoor temperature", "pl": "Temperatura zewnętrzna" }
+    },
+    "alarm_generic": {
+      "title": { "en": "Fault", "pl": "Usterka" }
+    },
+    "button.test_connection": {
+      "maintenanceAction": true,
+      "title": { "en": "Test connection", "pl": "Test połączenia" },
+      "desc": {
+        "en": "Check whether the saved Vasco credentials can connect to the cloud service.",
+        "pl": "Sprawdź, czy zapisane dane Vasco umożliwiają połączenie z usługą chmurową."
+      }
+    }
+  }
+}

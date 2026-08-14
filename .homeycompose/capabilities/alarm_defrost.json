@@ -1,0 +1,10 @@
+{
+  "type": "boolean",
+  "title": {
+    "en": "Defrost active",
+    "pl": "Odszranianie aktywne"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor"
+}

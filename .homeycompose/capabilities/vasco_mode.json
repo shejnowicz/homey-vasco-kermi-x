@@ -1,0 +1,18 @@
+{
+  "type": "enum",
+  "title": {
+    "en": "Operating mode",
+    "pl": "Tryb pracy"
+  },
+  "getable": true,
+  "setable": true,
+  "uiComponent": "picker",
+  "values": [
+    { "id": "low", "title": { "en": "Low", "pl": "Niski" } },
+    { "id": "medium", "title": { "en": "Medium", "pl": "Średni" } },
+    { "id": "high", "title": { "en": "High", "pl": "Wysoki" } },
+    { "id": "auto", "title": { "en": "Auto", "pl": "Automatyczny" } },
+    { "id": "holidays", "title": { "en": "Holidays", "pl": "Urlop" } },
+    { "id": "guests", "title": { "en": "Guests", "pl": "Goście" } }
+  ]
+}

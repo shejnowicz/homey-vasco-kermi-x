@@ -1,1 +1,10 @@
 require('./secret-safety.test');
+require('./unit/vasco-api-client.test');
+require('./unit/vasco-account-registry.test');
+require('./unit/vasco-account-service.test');
+require('./unit/vasco-command-builder.test');
+require('./unit/vasco-device-mapper.test');
+require('./unit/homey-manifest.test');
+require('./unit/publish-assets.test');
+require('./unit/vasco-driver.test');
+require('./unit/vasco-device.test');

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 960" role="img" aria-label="Ventilation unit in perspective">
+  <g id="unit-perspective" fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M105 180 650 80l205 125v590L310 900 105 775Z" stroke-width="60"/>
+    <path d="M650 80v595L310 900V300Z" stroke-width="52"/>
+    <path d="m105 180 205 120 545-95" stroke-width="52"/>
+    <path d="M190 370h40M190 485h40M190 600h40" stroke-width="62"/>
+    <circle cx="470" cy="630" r="138" stroke-width="56"/>
+    <path d="M470 492c54 57 68 111 36 161M608 630c-57 54-111 68-161 36M470 768c-54-57-68-111-36-161M332 630c57-54 111-68 161-36" stroke-width="48"/>
+  </g>
+</svg>
