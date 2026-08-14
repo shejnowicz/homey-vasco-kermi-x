@@ -74,6 +74,14 @@ test('Homey icons use the full 960 canvas with transparent, distinct ventilation
   assert.match(driverIcon, /id="unit-perspective"/);
 });
 
+test('driver icon uses filled geometry that remains visible as a Homey mask', () => {
+  const driverIcon = read('drivers', 'vasco-kermi-x', 'assets', 'icon.svg');
+
+  assert.match(driverIcon, /fill="#000"/);
+  assert.doesNotMatch(driverIcon, /\bstroke(?:-|=)/);
+  assert.doesNotMatch(driverIcon, /fill="none"/);
+});
+
 test('Fireplace capability icon is safe monochrome fireplace artwork', () => {
   const icon = read('assets', 'vasco_fireplace.svg');
   assert.match(icon, /viewBox="0 0 960 960"/);
