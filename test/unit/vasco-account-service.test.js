@@ -147,6 +147,29 @@ test('simultaneous configuration reads share one login and one request without c
   assert.equal(readCalls, 2);
 });
 
+test('a command reuses the latest successful configuration snapshot', async () => {
+  let reads = 0;
+  const apiClient = {
+    login: async () => OLD_TOKEN,
+    getAccountConfiguration: async () => {
+      reads += 1;
+      return fixture;
+    },
+    setDeviceProperties: async () => ({}),
+    writeDeviceParameter: async () => {},
+  };
+  const service = createService(apiClient);
+
+  await service.readConfiguration();
+  await service.executeDeviceCommand(
+    KITCHEN.identity,
+    raw => ({ ...raw, nextParameter: 'requestedLevel', nextValue: 3 }),
+    () => true,
+  );
+
+  assert.equal(reads, 1);
+});
+
 test('forced reads queue one new generation behind an older read and coalesce only before that generation starts', async () => {
   const reads = [deferred(), deferred(), deferred()];
   let readCalls = 0;
