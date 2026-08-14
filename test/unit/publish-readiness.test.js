@@ -18,13 +18,26 @@ test('Homey Store identity uses the D/T/X community product name', () => {
 
   assert.deepEqual(app.name, {
     en: 'Vasco/Kermi Ventilation',
-    pl: 'Wentylacja Vasco/Kermi',
+    pl: 'Rekuperacja Vasco/Kermi',
   });
   assert.deepEqual(app.description, {
     en: 'Comfortable ventilation for every Homey routine',
-    pl: 'Komfortowa wentylacja dopasowana do rytmu domu',
+    pl: 'Komfortowa rekuperacja dopasowana do rytmu domu',
   });
+  assert.deepEqual(app.tags.pl, ['jakość powietrza', 'rekuperacja']);
   assert.equal(app.version, '1.0.0');
+});
+
+test('Polish release surfaces use rekuperacja terminology', () => {
+  const driver = readJson('drivers/vasco-kermi-x/driver.compose.json');
+  const store = read('README.pl.txt');
+  const changelog = readJson('.homeychangelog.json');
+  const releaseCopy = [store, changelog['1.0.0'].pl].join('\n');
+
+  assert.equal(driver.name.pl, 'Rekuperator Vasco/Kermi D / T / X');
+  assert.match(store, /Połącz rekuperację Vasco i Kermi/);
+  assert.match(changelog['1.0.0'].pl, /dla rekuperatorów Vasco\/Kermi/);
+  assert.doesNotMatch(releaseCopy, /wentylacj|central(?:a|e|i|ą) wentylacyjn/i);
 });
 
 for (const [filename, languagePattern] of [

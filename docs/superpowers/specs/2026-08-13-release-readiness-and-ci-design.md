@@ -9,7 +9,7 @@ uses `main`; no `master` branch is created.
 ## Store identity and copy
 
 Rename the app to `Vasco/Kermi Ventilation` in English and
-`Wentylacja Vasco/Kermi` in Polish. Use concise Store descriptions that describe
+`Rekuperacja Vasco/Kermi` in Polish. Use concise Store descriptions that describe
 the daily benefit without repeating the app name or using generic phrases such
 as "adds support", "integrates", or "control devices".
 
