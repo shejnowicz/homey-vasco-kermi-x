@@ -1,4 +1,8 @@
 {
+  "1.0.2": {
+    "en": "Clarified the gateway requirements and initial Vasco Climate Control setup.",
+    "pl": "Doprecyzowano wymagania dotyczące bramki i początkowej konfiguracji Vasco Climate Control."
+  },
   "1.0.1": {
     "en": "Improved the ventilation-unit Flow card icon.",
     "pl": "Poprawiono widoczność ikony rekuperatora na kartach Flow."
