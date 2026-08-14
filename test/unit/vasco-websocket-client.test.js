@@ -2,7 +2,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const { VascoWebSocketClient } = require('../../lib/vasco-websocket-client');
-const { VascoTransportError } = require('../../lib/vasco-errors');
+const {
+  VascoProtocolError,
+  VascoTransportError,
+} = require('../../lib/vasco-errors');
 
 class FakeSocket {
   constructor(url) {
@@ -35,6 +38,15 @@ class FakeSocket {
 function binaryMessage(message) {
   return { data: new TextEncoder().encode(JSON.stringify(message)).buffer };
 }
+
+test('rejects invalid WebSocket timeout and retry limits', () => {
+  for (const timeoutMs of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(() => new VascoWebSocketClient({ timeoutMs }), RangeError);
+  }
+  for (const maxAttempts of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.throws(() => new VascoWebSocketClient({ maxAttempts }), RangeError);
+  }
+});
 
 test('sends Vasco account sync and shifted mode code as binary WebSocket frames', async () => {
   let socket;
@@ -217,18 +229,24 @@ test('send failures reject promptly with a redacted transport error and no unhan
       process.prependListener('unhandledRejection', onUnhandled);
 
       try {
-        let socket;
+        const sockets = [];
         const clock = new RecordingClock();
         const client = new VascoWebSocketClient({
           clock,
           createSocket: url => {
-            socket = new SocketType(url);
+            const socket = new SocketType(url);
+            sockets.push(socket);
             return socket;
           },
         });
         const write = writeFixture(client);
 
-        socket.emit('message', binaryMessage({
+        sockets[0].emit('message', binaryMessage({
+          functionName: 'connectionStatus',
+          status: 'OK',
+        }));
+        await new Promise(resolve => setImmediate(resolve));
+        sockets[1].emit('message', binaryMessage({
           functionName: 'connectionStatus',
           status: 'OK',
         }));
@@ -245,13 +263,100 @@ test('send failures reject promptly with a redacted transport error and no unhan
         assert.ok(outcome.error instanceof VascoTransportError);
         assert.equal(outcome.error.message, 'Vasco WebSocket command failed');
         assert.doesNotMatch(outcome.error.message, /private-(?:send|close)-token/);
-        assert.equal(clock.cleared, 1);
+        assert.equal(clock.cleared, 2);
         assert.deepEqual(unhandled, []);
       } finally {
         process.removeListener('unhandledRejection', onUnhandled);
       }
     });
   }
+});
+
+test('retries one transient WebSocket failure and resolves after the second acknowledgement', async () => {
+  const sockets = [];
+  const client = new VascoWebSocketClient({
+    createSocket: url => {
+      const socket = new FakeSocket(url);
+      sockets.push(socket);
+      return socket;
+    },
+  });
+
+  const write = writeFixture(client);
+  assert.equal(sockets.length, 1);
+  sockets[0].emit('close');
+  await Promise.resolve();
+
+  assert.equal(sockets.length, 2);
+  sockets[1].emit('message', binaryMessage({
+    functionName: 'connectionStatus',
+    status: 'OK',
+  }));
+  await Promise.resolve();
+  sockets[1].emit('message', binaryMessage({
+    functionName: 'dataWritten',
+    parameterName: 'requestedLevel',
+    value: 4,
+  }));
+
+  await write;
+  assert.equal(sockets[0].closed, true);
+  assert.equal(sockets[1].closed, true);
+});
+
+test('stops after two transient WebSocket failures', async () => {
+  const sockets = [];
+  const client = new VascoWebSocketClient({
+    createSocket: url => {
+      const socket = new FakeSocket(url);
+      sockets.push(socket);
+      return socket;
+    },
+  });
+
+  const write = writeFixture(client);
+  sockets[0].emit('close');
+  await Promise.resolve();
+  sockets[1].emit('close');
+
+  await assert.rejects(write, VascoTransportError);
+  assert.equal(sockets.length, 2);
+});
+
+test('does not retry malformed WebSocket responses', async () => {
+  const sockets = [];
+  const client = new VascoWebSocketClient({
+    createSocket: url => {
+      const socket = new FakeSocket(url);
+      sockets.push(socket);
+      return socket;
+    },
+  });
+
+  const write = writeFixture(client);
+  sockets[0].emit('message', { data: '{not-json' });
+
+  await assert.rejects(write, VascoProtocolError);
+  assert.equal(sockets.length, 1);
+});
+
+test('uses a four-second timeout for each bounded WebSocket attempt', () => {
+  const delays = [];
+  const clock = {
+    setTimeout: (_fn, delayMs) => {
+      delays.push(delayMs);
+      return Symbol('timeout');
+    },
+    clearTimeout: () => {},
+  };
+  const client = new VascoWebSocketClient({
+    clock,
+    createSocket: url => new FakeSocket(url),
+  });
+
+  void writeFixture(client).catch(() => {});
+
+  assert.deepEqual(delays, [4_000]);
 });
 
 class RecordingClock {
