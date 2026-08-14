@@ -1,4 +1,8 @@
 {
+  "1.0.4": {
+    "en": "Fixed consecutive mode changes briefly replaying an earlier ventilation level.",
+    "pl": "Naprawiono chwilowe przywracanie wcześniejszego biegu podczas kolejnych zmian trybu rekuperacji."
+  },
   "1.0.3": {
     "en": "Improved command reliability with bounded retries for temporary Vasco connection failures.",
     "pl": "Poprawiono niezawodność sterowania dzięki ograniczonym ponowieniom przy chwilowych błędach połączenia z Vasco."
