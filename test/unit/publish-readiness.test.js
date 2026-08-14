@@ -21,8 +21,8 @@ test('Homey Store identity uses the D/T/X community product name', () => {
     pl: 'Rekuperacja Vasco/Kermi',
   });
   assert.deepEqual(app.description, {
-    en: 'Comfortable ventilation for every Homey routine',
-    pl: 'Komfortowa rekuperacja dopasowana do rytmu domu',
+    en: 'Control gateway-connected Vasco and Kermi ventilation',
+    pl: 'Steruj rekuperacją Vasco i Kermi połączoną przez bramkę',
   });
   assert.deepEqual(app.tags.pl, ['jakość powietrza', 'rekuperacja']);
   assert.equal(app.version, '1.0.1');
@@ -57,6 +57,9 @@ for (const [filename, languagePattern] of [
     assert.match(description, /D, T (?:and|i) X/i);
     assert.match(description, languagePattern);
     assert.match(description, /community verification|weryfikacji społeczności/i);
+    assert.match(description, /gateway|bramk/i);
+    assert.match(description, /Climate Control/);
+    assert.match(description, /same.*account|tego samego konta/i);
     assert.doesNotMatch(
       description,
       /remaining time|pozostały czas|restores? the prior|przywraca poprzedni|local session|lokaln.*sesj/i,
@@ -72,6 +75,10 @@ test('public documentation describes D/T/X scope and current Fireplace control',
 
   assert.match(readme, /^# Vasco\/Kermi Ventilation for Homey$/m);
   assert.match(readme, /D, T and X/i);
+  assert.match(readme, /^## Requirements$/m);
+  assert.match(readme, /gateway.*online/i);
+  assert.match(readme, /already visible and controllable[\s\S]*Vasco Climate Control/i);
+  assert.match(readme, /does not need to remain open/i);
   assert.match(readme, /Fireplace.*toggle.*selected duration/i);
   assert.match(readme, /turn.*Fireplace.*off/i);
   assert.doesNotMatch(readme, /explicit disabling is not offered/i);
@@ -82,7 +89,17 @@ test('public documentation describes D/T/X scope and current Fireplace control',
   assert.match(driverReadme, /runtime.*implemented/i);
   assert.doesNotMatch(driverReadme, /X Series driver|runtime .* introduced by/i);
   assert.match(compatibility, /D, T (?:and|or) X/i);
+  assert.match(compatibility, /Gateway model/i);
+  assert.match(compatibility, /visible and controllable.*Vasco Climate Control/i);
   assert.match(contributing, /test|homey-validate|dependency-audit/i);
+});
+
+test('pairing explains the gateway and official-app prerequisites before login', () => {
+  const login = read('drivers/vasco-kermi-x/pair/login.html');
+
+  assert.match(login, /online Vasco\/Kermi gateway/i);
+  assert.match(login, /visible and controllable in the Vasco Climate Control app/i);
+  assert.match(login, /same Vasco cloud account/i);
 });
 
 test('CI exposes the three protected checks without publishing', () => {

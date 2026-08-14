@@ -14,8 +14,8 @@
     "pl": "Rekuperacja Vasco/Kermi"
   },
   "description": {
-    "en": "Comfortable ventilation for every Homey routine",
-    "pl": "Komfortowa rekuperacja dopasowana do rytmu domu"
+    "en": "Control gateway-connected Vasco and Kermi ventilation",
+    "pl": "Steruj rekuperacją Vasco i Kermi połączoną przez bramkę"
   },
   "author": {
     "name": "Seweryn Hejnowicz"
