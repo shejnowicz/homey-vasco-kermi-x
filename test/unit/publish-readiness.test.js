@@ -130,7 +130,7 @@ test('pairing explains the gateway and official-app prerequisites before login',
   assert.match(login, /same Vasco cloud account/i);
 });
 
-test('CI exposes the three protected checks without publishing', () => {
+test('CI validates changes and publishes only versioned main releases', () => {
   const workflow = read('.github/workflows/validate.yml');
 
   assert.match(workflow, /^\s{2}workflow_dispatch:\s*$/m);
@@ -143,5 +143,16 @@ test('CI exposes the three protected checks without publishing', () => {
   assert.match(workflow, /homey app validate --level publish/);
   assert.match(workflow, /npm audit --omit=dev --audit-level=high/);
   assert.match(workflow, /cancel-in-progress:\s*true/);
+  assert.match(workflow, /actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09/);
+  assert.match(workflow, /actions\/setup-node@a0853c24544627f65ddf259abe73b1d18a591444/);
+  assert.match(workflow, /^\s{2}release:\s*$/m);
+  assert.match(workflow, /github\.event_name == 'push'.*refs\/heads\/main/);
+  assert.match(workflow, /git show .*\.homeycompose\/app\.json/);
+  assert.match(workflow, /^\s{2}publish:\s*$/m);
+  assert.match(workflow, /needs\.release\.outputs\.changed == 'true'/);
+  assert.match(workflow, /needs: \[test, homey-validate, dependency-audit, release\]/);
+  assert.match(workflow, /environment:\s*homey-test/);
+  assert.match(workflow, /athombv\/github-action-homey-app-publish@0642b483f1eb66fbceb0c91b73df35d45fd2f3db/);
+  assert.match(workflow, /personal_access_token:\s*\$\{\{ secrets\.HOMEY_PAT \}\}/);
   assert.doesNotMatch(workflow, /homey app publish|HOMEY_TOKEN|ATHOM_TOKEN/i);
 });
