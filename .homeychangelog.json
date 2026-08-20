@@ -1,4 +1,8 @@
 {
+  "1.0.5": {
+    "en": "Added automated, validated delivery of versioned releases to Homey Developer Tools.",
+    "pl": "Dodano automatyczne, walidowane dostarczanie wersjonowanych wydań do Homey Developer Tools."
+  },
   "1.0.4": {
     "en": "Fixed consecutive mode changes briefly replaying an earlier ventilation level.",
     "pl": "Naprawiono chwilowe przywracanie wcześniejszego biegu podczas kolejnych zmian trybu rekuperacji."
