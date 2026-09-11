@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 
 const root = join(__dirname, '..', '..');
-const modes = ['low', 'medium', 'high', 'auto', 'holidays', 'guests'];
+const modes = ['low', 'medium', 'high', 'auto', 'controller', 'holidays', 'guests'];
 
 function readJson(...pathParts) {
   return JSON.parse(readFileSync(join(root, ...pathParts), 'utf8'));

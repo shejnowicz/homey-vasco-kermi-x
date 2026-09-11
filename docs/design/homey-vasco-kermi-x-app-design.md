@@ -109,7 +109,7 @@ The device detail view exposes:
 
 Values absent on a particular model are unavailable or hidden; missing values must never be represented as a fabricated zero.
 
-`Controller` mode is excluded from the first release because the tested X500 did not confirm activation after receiving level 5.
+`Controller` mode (level 5) is enabled by the owner's 2026-09-11 scope update. The owner confirmed activation in the official app; Homey readback and command validation on hardware remain pending.
 
 ### Control from the device view
 
@@ -277,7 +277,7 @@ Raw reverse-engineering captures and private API responses must never be committ
 
 - MQTT push updates.
 - Local LAN control without the Vasco cloud.
-- Controller mode (`requestedLevel: 5`).
+- Controller activation was initially excluded; this is superseded by the 2026-09-11 owner update above.
 - Support claims for unverified non-X-Series products.
 - Schedule editing.
 - Firmware updates or gateway administration.
@@ -288,7 +288,7 @@ Raw reverse-engineering captures and private API responses must never be committ
 - Credentials are stored only in protected Homey settings and tokens only in memory.
 - Account reads are shared and polling is configurable using safe presets.
 - The device view accurately presents all supported operational and diagnostic state.
-- All six supported standard modes and three duration types work and are verified after writes.
+- All seven supported standard modes and three duration types work and are verified after writes.
 - Fireplace enable and disable are included only after their payloads are integration-tested.
 - Flow cards behave as specified without false startup triggers.
 - Authentication expiry recovers transparently; credential failures produce one actionable notification.

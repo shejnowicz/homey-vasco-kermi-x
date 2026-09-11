@@ -57,11 +57,14 @@ configuration again after a write and confirm the observed state.
 | Medium | 2 |
 | High | 3 |
 | Auto | 4 |
+| Controller | 5 |
 | Holidays | 6 |
 | Guests | 7 |
 
-`requestedLevel: 5` (Controller) is excluded because activation was not
-confirmed for the initial supported model.
+Controller (level 5) is supported following the owner's confirmation on
+2026-09-11 that it can be activated in the official app. The initial exclusion
+is superseded. A live Homey command/readback test remains pending; never treat
+requested level 5 alone as confirmation if the effective level is different.
 
 ### Standard-mode duration
 

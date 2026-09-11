@@ -53,6 +53,7 @@ test('buildModeCommand encodes every supported mode as a permanent command', () 
     medium: 2,
     high: 3,
     auto: 4,
+    controller: 5,
     holidays: 6,
     guests: 7,
   };
@@ -95,13 +96,13 @@ function withoutRequestedLevel(device) {
   return clone;
 }
 
-test('buildModeCommand rejects unsupported controller mode and invalid minute durations', () => {
+test('buildModeCommand rejects unsupported mode identifiers and invalid minute durations', () => {
   assert.throws(
     () => buildModeCommand(rawDevice, { mode: 5, duration: { type: 'permanent' } }),
     RangeError,
   );
   assert.throws(
-    () => buildModeCommand(rawDevice, { mode: 'controller', duration: { type: 'permanent' } }),
+    () => buildModeCommand(rawDevice, { mode: 'unsupported', duration: { type: 'permanent' } }),
     RangeError,
   );
 
@@ -128,13 +129,13 @@ test('buildModeCommand rejects inherited property names as modes', () => {
   }
 });
 
-test('mode mapping cannot be mutated or extended to admit controller level 5', () => {
+test('mode mapping cannot be mutated or extended', () => {
   assert.equal(Object.getPrototypeOf(MODES), null);
   assert.equal(Object.isFrozen(MODES), true);
-  assert.equal(Reflect.set(MODES, 'controller', 5), false);
-  assert.equal(Object.hasOwn(MODES, 'controller'), false);
+  assert.equal(Reflect.set(MODES, 'unsupported', 8), false);
+  assert.equal(Object.hasOwn(MODES, 'unsupported'), false);
   assert.throws(
-    () => buildModeCommand(rawDevice, { mode: 'controller', duration: { type: 'permanent' } }),
+    () => buildModeCommand(rawDevice, { mode: 'unsupported', duration: { type: 'permanent' } }),
     RangeError,
   );
 });
@@ -229,5 +230,19 @@ test('isModeConfirmed rejects invalid timed duration boundaries', () => {
       duration: { type: 'minutes', minutes },
       nowMs,
     }), false, `${minutes} minutes should not be confirmed`);
+  }
+});
+
+test('controller commands encode level 5 and require an observed controller state', () => {
+  for (const duration of [{ type: 'schedule' }, { type: 'permanent' }, { type: 'minutes', minutes: 30 }]) {
+    const request = { mode: 'controller', duration, nowMs: 1_700_000_000_000 };
+    const original = structuredClone(rawDevice);
+    const command = buildModeCommand(rawDevice, request);
+    assert.equal(command.nextParameter, 'requestedLevel');
+    assert.equal(command.nextValue, 5);
+    assert.deepEqual(rawDevice, original);
+    const observed = { mode: 5, controlMode: command.controlMode, manualSettingActiveTill: command.manualSettingActiveTill };
+    assert.equal(isModeConfirmed(observed, request), true);
+    assert.equal(isModeConfirmed({ ...observed, mode: 2, requestedMode: 5 }, request), false);
   }
 });
