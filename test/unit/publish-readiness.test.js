@@ -25,7 +25,7 @@ test('Homey Store identity uses the D/T/X community product name', () => {
     pl: 'Steruj rekuperacją Vasco i Kermi połączoną przez bramkę',
   });
   assert.deepEqual(app.tags.pl, ['jakość powietrza', 'rekuperacja']);
-  assert.equal(app.version, '1.0.6');
+  assert.equal(app.version, '1.0.7');
 });
 
 test('Polish release surfaces use rekuperacja terminology', () => {
