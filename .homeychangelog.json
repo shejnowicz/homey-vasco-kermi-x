@@ -1,4 +1,8 @@
 {
+  "1.0.6": {
+    "en": "Added Controller mode (level 5) to device controls and Flow cards, with effective-state confirmation.",
+    "pl": "Dodano tryb Regulator (poziom 5) do sterowania i kart Flow, z potwierdzeniem rzeczywistego stanu."
+  },
   "1.0.5": {
     "en": "Added automated, validated delivery of versioned releases to Homey Developer Tools.",
     "pl": "Dodano automatyczne, walidowane dostarczanie wersjonowanych wydań do Homey Developer Tools."
