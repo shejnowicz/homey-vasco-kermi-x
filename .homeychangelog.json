@@ -1,4 +1,8 @@
 {
+  "1.0.7": {
+    "en": "Fixed Controller mode readback when activated in the Vasco app.",
+    "pl": "Naprawiono odczyt trybu Regulator włączonego w aplikacji Vasco."
+  },
   "1.0.6": {
     "en": "Added Controller mode (level 5) to device controls and Flow cards, with effective-state confirmation.",
     "pl": "Dodano tryb Regulator (poziom 5) do sterowania i kart Flow, z potwierdzeniem rzeczywistego stanu."

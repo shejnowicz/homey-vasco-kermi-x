@@ -32,8 +32,8 @@ over RF.
 - Homey Flow actions, conditions, and device-state triggers
 
 Controller mode (level 5) is available in the mode picker and Flow cards.
-Activation in the official Vasco app was reported by the owner; Homey command
-confirmation still requires an observed effective level 5.
+X500 reports Controller as effective level 13, normalized to mode 5 in Homey.
+Command confirmation requires observed state, not just a write acknowledgement.
 Turn Fireplace mode off with the device toggle to send the vendor's zero-minute command.
 
 ## Cloud dependency

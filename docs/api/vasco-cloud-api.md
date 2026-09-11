@@ -61,10 +61,14 @@ configuration again after a write and confirm the observed state.
 | Holidays | 6 |
 | Guests | 7 |
 
-Controller (level 5) is supported following the owner's confirmation on
-2026-09-11 that it can be activated in the official app. The initial exclusion
-is superseded. A live Homey command/readback test remains pending; never treat
-requested level 5 alone as confirmation if the effective level is different.
+Controller uses command/canonical mode 5. On 2026-09-11, the owner confirmed
+Homey-to-Vasco activation; a subsequent read while Controller was active in the
+official app returned effective `level: 13` and `requestedLevel: null` on X500.
+Normalize that observed effective code to canonical mode 5 at the read boundary.
+Keep the original raw object unchanged for subsequent complete-object writes.
+Do not normalize other unknown levels or infer Controller from requestedLevel.
+Command confirmation still requires an observed effective Controller state;
+a write acknowledgement alone is insufficient.
 
 ### Standard-mode duration
 
