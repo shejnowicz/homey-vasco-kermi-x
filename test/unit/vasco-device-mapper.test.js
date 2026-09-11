@@ -179,3 +179,21 @@ test('maps known state properties and represents absent optional temperatures as
     fireplaceModeTime: 20,
   });
 });
+
+
+test('observed X500 Controller level 13 maps to canonical mode 5 without changing raw state', () => {
+  const raw = realX500Shape({ level: 13, requestedLevel: null });
+  const before = structuredClone(raw);
+  const state = toDeviceState(raw);
+  assert.equal(state.mode, 5);
+  assert.equal(state.requestedMode, 13); // preserve the diagnostic fallback
+  assert.deepEqual(raw, before);
+  const { isModeConfirmed } = require('../../lib/vasco-command-builder');
+  assert.equal(isModeConfirmed(state, { mode: 'controller', duration: { type: 'schedule' } }), true);
+});
+
+test('requested Controller does not override a different effective level', () => {
+  assert.equal(toDeviceState(realX500Shape({ level: 2, requestedLevel: 5 })).mode, 2);
+  assert.equal(toDeviceState(realX500Shape({ level: 5 })).mode, 5);
+  assert.equal(toDeviceState(realX500Shape({ level: 12 })).mode, 12);
+});

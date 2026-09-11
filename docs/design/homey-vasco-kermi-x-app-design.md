@@ -109,7 +109,7 @@ The device detail view exposes:
 
 Values absent on a particular model are unavailable or hidden; missing values must never be represented as a fabricated zero.
 
-`Controller` mode (level 5) is enabled by the owner's 2026-09-11 scope update. The owner confirmed activation in the official app; Homey readback and command validation on hardware remain pending.
+`Controller` mode (level 5) is enabled by the owner's 2026-09-11 scope update. The owner confirmed Homey-to-Vasco activation. A live read with Controller active returned effective `level: 13`; the mapper normalizes this to canonical mode 5. Verification of the updated Homey readback remains pending deployment.
 
 ### Control from the device view
 

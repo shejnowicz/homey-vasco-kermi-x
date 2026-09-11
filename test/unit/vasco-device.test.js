@@ -1561,3 +1561,14 @@ function deferred() {
   });
   return { promise, resolve, reject };
 }
+
+
+test('external Controller activation updates both Homey modes and leaving it restores medium', async () => {
+  const { device } = createHarness();
+  for (const [level, expectedMode, expectedNumber] of [[2, 'medium', 2], [13, 'controller', 5], [2, 'medium', 2]]) {
+    const raw = { ...fixture.deviceProperties[0], level, requestedLevel: null };
+    await device.applyState(toDeviceState(raw), { initial: true });
+    assert.equal(device.getCapabilityValue('vasco_mode'), expectedMode);
+    assert.equal(device.getCapabilityValue('measure_vasco_mode'), expectedNumber);
+  }
+});
