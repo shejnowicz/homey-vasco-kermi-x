@@ -12,6 +12,7 @@
     { "id": "medium", "title": { "en": "Medium", "pl": "Średni" } },
     { "id": "high", "title": { "en": "High", "pl": "Wysoki" } },
     { "id": "auto", "title": { "en": "Auto", "pl": "Automatyczny" } },
+    { "id": "controller", "title": { "en": "Controller", "pl": "Regulator" } },
     { "id": "holidays", "title": { "en": "Holidays", "pl": "Urlop" } },
     { "id": "guests", "title": { "en": "Guests", "pl": "Goście" } }
   ]

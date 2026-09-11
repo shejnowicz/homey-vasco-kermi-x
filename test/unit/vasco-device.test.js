@@ -618,6 +618,7 @@ test('mode number synchronization writes each supported requested operating mode
     [2, 'medium'],
     [3, 'high'],
     [4, 'auto'],
+    [5, 'controller'],
     [6, 'holidays'],
     [7, 'guests'],
   ]) {

@@ -23,7 +23,7 @@ over RF.
 
 ## What it supports
 
-- Low, Medium, High, Auto, Holidays, and Guests operating modes
+- Low, Medium, High, Auto, Controller, Holidays, and Guests operating modes
 - Permanent control, control until the next schedule change, and timed overrides
 - A Fireplace device toggle that enables the selected duration of 5–85 minutes
 - Indoor and outdoor temperatures, supply and exhaust fan readings, bypass and
@@ -31,9 +31,10 @@ over RF.
 - Multiple ventilation units on one account
 - Homey Flow actions, conditions, and device-state triggers
 
-Controller mode is intentionally unsupported because it has not been confirmed
-on the tested unit. Turn Fireplace mode off with the device toggle to send the
-vendor's zero-minute command.
+Controller mode (level 5) is available in the mode picker and Flow cards.
+Activation in the official Vasco app was reported by the owner; Homey command
+confirmation still requires an observed effective level 5.
+Turn Fireplace mode off with the device toggle to send the vendor's zero-minute command.
 
 ## Cloud dependency
 

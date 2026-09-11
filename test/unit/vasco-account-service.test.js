@@ -1033,3 +1033,37 @@ test('credentials and session token are omitted from enumerable diagnostics', as
   assert.ok(!Object.keys(service).includes('password'));
   assert.ok(!Object.keys(service).includes('session'));
 });
+
+test('Controller acknowledgement cannot substitute for observed effective mode', async () => {
+  const clock = new FakeClock();
+  const physicalWrites = [];
+  let reads = 0;
+  const apiClient = {
+    login: async () => OLD_TOKEN,
+    getAccountConfiguration: async () => {
+      reads += 1;
+      return fixture;
+    },
+    setDeviceProperties: async () => ({}),
+    writeDeviceParameter: async options => physicalWrites.push(options),
+  };
+  const service = createService(apiClient, { clock });
+
+  const command = service.executeDeviceCommand(
+    KITCHEN.identity,
+    raw => buildModeCommand(raw, {
+      mode: 'controller',
+      duration: { type: 'permanent' },
+    }),
+    state => state.mode === 5,
+  );
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await advanceNextTimer(clock);
+  }
+
+  await assert.rejects(command, VascoProtocolError);
+  assert.equal(physicalWrites[0].parameterName, 'requestedLevel');
+  assert.equal(reads, 5);
+  assert.equal(physicalWrites[0].value, 5);
+});

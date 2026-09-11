@@ -403,6 +403,13 @@
                 }
               },
               {
+                "id": "controller",
+                "title": {
+                  "en": "Controller",
+                  "pl": "Regulator"
+                }
+              },
+              {
                 "id": "holidays",
                 "title": {
                   "en": "Holidays",
@@ -521,6 +528,13 @@
                 }
               },
               {
+                "id": "controller",
+                "title": {
+                  "en": "Controller",
+                  "pl": "Regulator"
+                }
+              },
+              {
                 "id": "holidays",
                 "title": {
                   "en": "Holidays",
@@ -601,6 +615,13 @@
                 }
               },
               {
+                "id": "controller",
+                "title": {
+                  "en": "Controller",
+                  "pl": "Regulator"
+                }
+              },
+              {
                 "id": "holidays",
                 "title": {
                   "en": "Holidays",
@@ -668,6 +689,13 @@
                 "title": {
                   "en": "Auto",
                   "pl": "Auto"
+                }
+              },
+              {
+                "id": "controller",
+                "title": {
+                  "en": "Controller",
+                  "pl": "Regulator"
                 }
               },
               {
@@ -1228,6 +1256,13 @@
           "title": {
             "en": "Auto",
             "pl": "Automatyczny"
+          }
+        },
+        {
+          "id": "controller",
+          "title": {
+            "en": "Controller",
+            "pl": "Regulator"
           }
         },
         {
