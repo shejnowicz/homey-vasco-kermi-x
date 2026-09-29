@@ -1,4 +1,8 @@
 {
+  "1.0.8": {
+    "en": "The operating mode is now read from the mode the unit was asked for instead of its effective ventilation level, and that effective level is exposed as its own sensor.",
+    "pl": "Tryb pracy jest teraz odczytywany z trybu zażądanego od urządzenia, a nie z jego efektywnego poziomu wentylacji, który stał się osobnym czujnikiem."
+  },
   "1.0.7": {
     "en": "Fixed Controller mode readback when activated in the Vasco app.",
     "pl": "Naprawiono odczyt trybu Regulator włączonego w aplikacji Vasco."

@@ -94,6 +94,7 @@ If a candidate does not expose the required contract, pairing displays its model
 The device detail view exposes:
 
 - operating mode: Low, Medium, High, Auto, Holidays, or Guests,
+- effective ventilation level: the level the unit is actually running at, read-only,
 - indoor temperature,
 - outdoor temperature,
 - supply fan speed,
@@ -110,6 +111,8 @@ The device detail view exposes:
 Values absent on a particular model are unavailable or hidden; missing values must never be represented as a fabricated zero.
 
 `Controller` mode (level 5) is enabled by the owner's 2026-09-11 scope update. The owner confirmed Homey-to-Vasco activation. A live read with Controller active returned effective `level: 13`; the mapper normalizes this to canonical mode 5. Verification of the updated Homey readback remains pending deployment.
+
+The operating mode is the mode the unit was asked for (`requestedLevel`), not the level it is effectively running at (`level`). The two are different scales and differ routinely: on 2026-09-29 a unit set to Holidays (canonical 6) reported effective `level: 4`, which Homey displayed as Auto. Units that do not report `requestedLevel` fall back to the normalized effective level, which is what X500 needs on a schedule read.
 
 ### Control from the device view
 

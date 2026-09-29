@@ -42,7 +42,8 @@
     "alarm_defrost",
     "alarm_rf",
     "button.test_connection",
-    "measure_vasco_mode"
+    "measure_vasco_mode",
+    "measure_vasco_level"
   ],
   "capabilitiesOptions": {
     "measure_temperature.indoor": {

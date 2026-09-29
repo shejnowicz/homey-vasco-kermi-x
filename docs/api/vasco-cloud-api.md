@@ -66,9 +66,21 @@ Homey-to-Vasco activation; a subsequent read while Controller was active in the
 official app returned effective `level: 13` and `requestedLevel: null` on X500.
 Normalize that observed effective code to canonical mode 5 at the read boundary.
 Keep the original raw object unchanged for subsequent complete-object writes.
-Do not normalize other unknown levels or infer Controller from requestedLevel.
-Command confirmation still requires an observed effective Controller state;
-a write acknowledgement alone is insufficient.
+Do not normalize other unknown levels.
+Command confirmation still requires observed state; a write acknowledgement
+alone is insufficient.
+
+### Selected mode and effective level are different fields
+
+`requestedLevel` carries the selected mode on the canonical scale above.
+`level` carries the ventilation level the unit is effectively running at, on the
+vendor's own scale, where Controller appears as 13. The two differ routinely: on
+2026-09-29 a unit set to Holidays (canonical 6) reported effective `level: 4`.
+Read the operating mode from `requestedLevel`, and fall back to the normalized
+effective level only when the unit does not report it, as X500 does on a
+schedule read. Expose the effective level separately instead of presenting it as
+the mode. Confirm a mode command against the canonical selected mode; comparing
+it with the effective level can never confirm a mode that runs at another level.
 
 ### Standard-mode duration
 

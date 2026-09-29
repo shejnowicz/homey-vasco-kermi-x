@@ -107,7 +107,7 @@ test('accepts X500 schedule state with null requestedLevel and uses the effectiv
     product: 'X500',
     softwareVersion: 26,
     mode: 2,
-    requestedMode: 2,
+    effectiveLevel: 2,
     controlMode: 'schedule',
     manualSettingActiveTill: 0,
     fanSpeedInlet: 50,
@@ -153,7 +153,8 @@ test('accepts a device when Vasco omits optional requestedLevel after a write', 
   delete device.requestedLevel;
 
   assert.doesNotThrow(() => assertSupportedDevice(device));
-  assert.equal(toDeviceState(device).requestedMode, device.level);
+  assert.equal(toDeviceState(device).mode, device.level);
+  assert.equal(toDeviceState(device).effectiveLevel, device.level);
 });
 
 test('maps known state properties and represents absent optional temperatures as null', () => {
@@ -163,7 +164,7 @@ test('maps known state properties and represents absent optional temperatures as
     product: 'Kermi X350',
     softwareVersion: '2.0.0',
     mode: 4,
-    requestedMode: 4,
+    effectiveLevel: 4,
     controlMode: 'schedule',
     manualSettingActiveTill: 0,
     fanSpeedInlet: 36,
@@ -186,14 +187,69 @@ test('observed X500 Controller level 13 maps to canonical mode 5 without changin
   const before = structuredClone(raw);
   const state = toDeviceState(raw);
   assert.equal(state.mode, 5);
-  assert.equal(state.requestedMode, 13); // preserve the diagnostic fallback
+  assert.equal(state.effectiveLevel, 5); // the 13 normalization is about the effective scale
   assert.deepEqual(raw, before);
   const { isModeConfirmed } = require('../../lib/vasco-command-builder');
   assert.equal(isModeConfirmed(state, { mode: 'controller', duration: { type: 'schedule' } }), true);
 });
 
-test('requested Controller does not override a different effective level', () => {
-  assert.equal(toDeviceState(realX500Shape({ level: 2, requestedLevel: 5 })).mode, 2);
-  assert.equal(toDeviceState(realX500Shape({ level: 5 })).mode, 5);
-  assert.equal(toDeviceState(realX500Shape({ level: 12 })).mode, 12);
+test('Controller reported as effective level 13 alongside requestedLevel 5 stays mode 5', () => {
+  const state = toDeviceState(realX500Shape({ level: 13, requestedLevel: 5 }));
+
+  assert.equal(state.mode, 5);
+  assert.equal(state.effectiveLevel, 5);
+  const { isModeConfirmed } = require('../../lib/vasco-command-builder');
+  assert.equal(
+    isModeConfirmed(state, { mode: 'controller', duration: { type: 'schedule' } }),
+    true,
+  );
 });
+
+test('the selected mode follows requestedLevel while the effective level follows level', () => {
+  const holidays = toDeviceState(realX500Shape({ level: 4, requestedLevel: 6 }));
+
+  assert.equal(holidays.mode, 6);
+  assert.equal(holidays.effectiveLevel, 4);
+
+  const controller = toDeviceState(realX500Shape({ level: 2, requestedLevel: 5 }));
+  assert.equal(controller.mode, 5);
+  assert.equal(controller.effectiveLevel, 2);
+});
+
+test('a Holidays selection confirms even though the effective level differs', () => {
+  const { isModeConfirmed } = require('../../lib/vasco-command-builder');
+  const state = toDeviceState(realX500Shape({
+    level: 4,
+    requestedLevel: 6,
+    controlMode: 'manual',
+    manualSettingActiveTill: -1,
+  }));
+
+  assert.equal(
+    isModeConfirmed(state, { mode: 'holidays', duration: { type: 'permanent' } }),
+    true,
+  );
+  assert.equal(
+    isModeConfirmed(state, { mode: 'auto', duration: { type: 'permanent' } }),
+    false,
+  );
+});
+
+test('a missing requestedLevel falls back to the effective level for both values', () => {
+  assert.deepEqual(
+    pickLevels(toDeviceState(realX500Shape({ level: 5, requestedLevel: null }))),
+    { mode: 5, effectiveLevel: 5 },
+  );
+  assert.deepEqual(
+    pickLevels(toDeviceState(realX500Shape({ level: 12, requestedLevel: null }))),
+    { mode: 12, effectiveLevel: 12 },
+  );
+  assert.deepEqual(
+    pickLevels(toDeviceState(realX500Shape({ level: 13, requestedLevel: null }))),
+    { mode: 5, effectiveLevel: 5 },
+  );
+});
+
+function pickLevels({ mode, effectiveLevel }) {
+  return { mode, effectiveLevel };
+}
