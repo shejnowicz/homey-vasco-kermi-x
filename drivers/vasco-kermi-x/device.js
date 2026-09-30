@@ -11,6 +11,8 @@ const {
   discoverVentilationDevices,
   toDeviceState,
 } = require('../../lib/vasco-device-mapper');
+// TEMPORARY DIAGNOSTIC (remove after the mode-field question is settled)
+const { captureRawPayload } = require('../../lib/vasco-raw-diagnostics');
 const { VascoAuthenticationError, VascoProtocolError } = require('../../lib/vasco-errors');
 const { MODES } = require('../../lib/vasco-modes');
 const { controlDurationValue } = require('../../lib/vasco-control-duration');
@@ -184,6 +186,8 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       throw new VascoProtocolError('The paired Vasco ventilation device was not found');
     }
 
+    // TEMPORARY DIAGNOSTIC (remove after the mode-field question is settled)
+    captureRawPayload('poll', device.raw, this.homey?.settings);
     const state = toDeviceState(device.raw);
     return this.enqueueState(async () => {
       const applied = await this.applyStateNow(state, { initial });

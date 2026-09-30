@@ -6,6 +6,12 @@ const { test } = require('node:test');
 const fixture = require('../fixtures/account-multiple-devices');
 const { VascoAccountService } = require('../../lib/vasco-account-service');
 const { toDeviceState } = require('../../lib/vasco-device-mapper');
+// TEMPORARY DIAGNOSTIC (remove after the mode-field question is settled)
+const {
+  MASK,
+  RAW_PAYLOAD_SETTINGS_KEY,
+  resetRawDiagnostics,
+} = require('../../lib/vasco-raw-diagnostics');
 const { VascoProtocolError, VascoTransportError } = require('../../lib/vasco-errors');
 
 const EMAIL = 'device-owner@example.invalid';
@@ -48,8 +54,17 @@ class HomeyDeviceDouble {
     this.storeRemovals = [];
     this.logged = [];
     this.clock = clock;
+    // TEMPORARY DIAGNOSTIC (remove after the mode-field question is settled)
+    this.appSettings = new Map();
     this.homey = {
       app,
+      // TEMPORARY DIAGNOSTIC (remove after the mode-field question is settled)
+      settings: {
+        get: key => (this.appSettings.has(key) ? this.appSettings.get(key) : null),
+        set: (key, value) => {
+          this.appSettings.set(key, value);
+        },
+      },
       clock: { getTimezone: () => 'Europe/Warsaw' },
       i18n: { getLanguage: () => 'pl' },
       notifications: { createNotification: async () => undefined },
@@ -1635,6 +1650,23 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
+
+// TEMPORARY DIAGNOSTIC (remove after the mode-field question is settled)
+test('a state refresh captures the raw Vasco payload in the app settings', async () => {
+  resetRawDiagnostics();
+  const { device } = createHarness();
+
+  await device.onInit();
+
+  const entries = device.appSettings.get(RAW_PAYLOAD_SETTINGS_KEY);
+  const kitchen = fixture.deviceProperties[0];
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].source, 'poll');
+  assert.equal(entries[0].raw.level, kitchen.level);
+  assert.equal(entries[0].raw.requestedLevel, kitchen.requestedLevel);
+  assert.equal(entries[0].raw.controlMode, kitchen.controlMode);
+  assert.equal(entries[0].raw.bypassPosition, MASK);
+});
 
 test('external Controller activation updates both Homey modes and leaving it restores medium', async () => {
   const { device } = createHarness();

@@ -4,6 +4,8 @@ require('./unit/vasco-account-registry.test');
 require('./unit/vasco-account-service.test');
 require('./unit/vasco-command-builder.test');
 require('./unit/vasco-device-mapper.test');
+// TEMPORARY DIAGNOSTIC (remove after the mode-field question is settled)
+require('./unit/vasco-raw-diagnostics.test');
 require('./unit/homey-manifest.test');
 require('./unit/publish-assets.test');
 require('./unit/publish-readiness.test');
