@@ -1,10 +1,12 @@
 {
   "id": "com.shejnowicz.vasco-kermi-x",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
-  "platforms": ["local"],
+  "platforms": [
+    "local"
+  ],
   "brandColor": "#254F5D",
   "name": {
     "en": "Vasco/Kermi Ventilation",
@@ -23,8 +25,15 @@
     "xlarge": "/assets/images/xlarge.png"
   },
   "tags": {
-    "en": ["ventilation", "air quality", "heat recovery"],
-    "pl": ["jakość powietrza", "rekuperacja"]
+    "en": [
+      "ventilation",
+      "air quality",
+      "heat recovery"
+    ],
+    "pl": [
+      "jakość powietrza",
+      "rekuperacja"
+    ]
   },
   "source": "https://github.com/shejnowicz/homey-vasco-kermi-x",
   "homepage": "https://github.com/shejnowicz/homey-vasco-kermi-x",
@@ -32,6 +41,8 @@
   "bugs": {
     "url": "https://github.com/shejnowicz/homey-vasco-kermi-x/issues"
   },
-  "category": ["climate"],
+  "category": [
+    "climate"
+  ],
   "permissions": []
 }

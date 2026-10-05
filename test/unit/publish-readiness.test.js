@@ -25,7 +25,7 @@ test('Homey Store identity uses the D/T/X community product name', () => {
     pl: 'Steruj rekuperacją Vasco i Kermi połączoną przez bramkę',
   });
   assert.deepEqual(app.tags.pl, ['jakość powietrza', 'rekuperacja']);
-  assert.equal(app.version, '1.0.7');
+  assert.equal(app.version, '1.0.9');
 });
 
 test('Polish release surfaces use rekuperacja terminology', () => {
@@ -73,6 +73,24 @@ test('automatic publishing release has bilingual changelog copy', () => {
 
   assert.match(changelog['1.0.5'].en, /automated.*validated/i);
   assert.match(changelog['1.0.5'].pl, /automatycz.*walidowan/i);
+});
+
+test('requested-mode readback release has bilingual changelog copy', () => {
+  const changelog = readJson('.homeychangelog.json');
+
+  assert.match(changelog['1.0.8'].en, /mode the unit was asked for/i);
+  assert.match(changelog['1.0.8'].en, /effective ventilation level.*own sensor/i);
+  assert.match(changelog['1.0.8'].pl, /trybu zażądanego/i);
+  assert.match(changelog['1.0.8'].pl, /osobnym czujnikiem/i);
+});
+
+test('selected-mode correction release has bilingual changelog copy', () => {
+  const changelog = readJson('.homeychangelog.json');
+
+  assert.match(changelog['1.0.9'].en, /field that actually holds it/i);
+  assert.match(changelog['1.0.9'].en, /until the next schedule change/i);
+  assert.match(changelog['1.0.9'].pl, /pola, które naprawdę go niesie/i);
+  assert.match(changelog['1.0.9'].pl, /do następnej zmiany harmonogramu/i);
 });
 
 for (const [filename, languagePattern] of [

@@ -441,9 +441,9 @@ test('a command returns mapped confirmed state and rejects an unconfirmed state'
   const state = await service.executeDeviceCommand(
     KITCHEN.identity,
     raw => ({ ...raw, requestedLevel: 4 }),
-    observed => observed.requestedMode === 4,
+    observed => observed.mode === 4,
   );
-  assert.equal(state.requestedMode, 4);
+  assert.equal(state.mode, 4);
 
   const rejection = service.executeDeviceCommand(
     KITCHEN.identity,
@@ -474,12 +474,12 @@ test('command confirmation retries while the Vasco cloud still returns stale sta
   const command = service.executeDeviceCommand(
     KITCHEN.identity,
     raw => ({ ...raw, nextParameter: 'requestedLevel', nextValue: 4 }),
-    observed => observed.requestedMode === 4,
+    observed => observed.mode === 4,
   );
   await advanceNextTimer(clock);
   await advanceNextTimer(clock);
 
-  assert.equal((await command).requestedMode, 4);
+  assert.equal((await command).mode, 4);
   assert.equal(reads, 4);
 });
 

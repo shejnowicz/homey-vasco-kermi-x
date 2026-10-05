@@ -1,0 +1,12 @@
+{
+  "type": "number",
+  "title": {
+    "en": "Effective ventilation level",
+    "pl": "Efektywny poziom wentylacji"
+  },
+  "step": 1,
+  "decimals": 0,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor"
+}

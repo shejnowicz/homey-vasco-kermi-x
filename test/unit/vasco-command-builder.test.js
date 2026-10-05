@@ -176,16 +176,18 @@ test('isFireplaceCommand accepts zero and positive whole-minute writes', () => {
 test('confirmation helpers match observed mapped state', () => {
   assert.equal(isModeConfirmed({
     mode: 3,
-    requestedMode: 3,
+    effectiveLevel: 3,
     controlMode: 'schedule',
     manualSettingActiveTill: 0,
   }, {
     mode: 'high',
     duration: { type: 'schedule' },
   }), true);
+  // Holidays runs at an unrelated effective level; confirmation follows the
+  // canonical mode the unit reports back, never that level.
   assert.equal(isModeConfirmed({
     mode: 6,
-    requestedMode: 6,
+    effectiveLevel: 4,
     controlMode: 'manual',
     manualSettingActiveTill: -1,
   }, {
@@ -194,7 +196,7 @@ test('confirmation helpers match observed mapped state', () => {
   }), true);
   assert.equal(isModeConfirmed({
     mode: 4,
-    requestedMode: 4,
+    effectiveLevel: 4,
     controlMode: 'manual',
     manualSettingActiveTill: 1_700_001_800_000,
   }, {
@@ -204,7 +206,7 @@ test('confirmation helpers match observed mapped state', () => {
   }), true);
   assert.equal(isModeConfirmed({
     mode: 4,
-    requestedMode: 4,
+    effectiveLevel: 4,
     controlMode: 'schedule',
     manualSettingActiveTill: 0,
   }, {
@@ -222,7 +224,7 @@ test('isModeConfirmed rejects invalid timed duration boundaries', () => {
   for (const minutes of [0, 1.5, 1441]) {
     assert.equal(isModeConfirmed({
       mode: 4,
-      requestedMode: 4,
+      effectiveLevel: 4,
       controlMode: 'manual',
       manualSettingActiveTill: nowMs + (minutes * 60_000),
     }, {
@@ -243,6 +245,23 @@ test('controller commands encode level 5 and require an observed controller stat
     assert.deepEqual(rawDevice, original);
     const observed = { mode: 5, controlMode: command.controlMode, manualSettingActiveTill: command.manualSettingActiveTill };
     assert.equal(isModeConfirmed(observed, request), true);
-    assert.equal(isModeConfirmed({ ...observed, mode: 2, requestedMode: 5 }, request), false);
+    // Controller mapped from the observed effective level 13 confirms too.
+    assert.equal(isModeConfirmed({ ...observed, effectiveLevel: 5 }, request), true);
+    assert.equal(isModeConfirmed({ ...observed, mode: 2, effectiveLevel: 5 }, request), false);
   }
+});
+
+test('confirmation compares the canonical mode, not the effective ventilation level', () => {
+  const request = { mode: 'holidays', duration: { type: 'schedule' } };
+  const observed = {
+    mode: 6,
+    effectiveLevel: 4,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+  };
+
+  assert.equal(isModeConfirmed(observed, request), true);
+  // The pre-1.0.8 reading, where the effective level stood in for the mode,
+  // could never confirm Holidays on a unit running at level 4.
+  assert.equal(isModeConfirmed({ ...observed, mode: observed.effectiveLevel }, request), false);
 });

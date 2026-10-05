@@ -27,6 +27,7 @@ const requiredCapabilities = [
   'alarm_rf',
   'button.test_connection',
   'measure_vasco_mode',
+  'measure_vasco_level',
 ];
 
 const requiredSettings = [
@@ -111,6 +112,7 @@ test('custom capabilities have complete bilingual UI metadata', () => {
   const fireplace = readJson('.homeycompose', 'capabilities', 'vasco_fireplace.json');
   const duration = readJson('.homeycompose', 'capabilities', 'vasco_fireplace_duration.json');
   const modeNumber = readJson('.homeycompose', 'capabilities', 'measure_vasco_mode.json');
+  const effectiveLevel = readJson('.homeycompose', 'capabilities', 'measure_vasco_level.json');
   const diagnostics = [
     'vasco_supply_fan',
     'vasco_exhaust_fan',
@@ -155,6 +157,22 @@ test('custom capabilities have complete bilingual UI metadata', () => {
   assert.equal(Object.hasOwn(modeNumber, 'units'), false);
   assert.equal(typeof modeNumber.title.en, 'string');
   assert.equal(typeof modeNumber.title.pl, 'string');
+  // The effective ventilation level is read-only and uses the vendor scale,
+  // which reaches at least 13, so it declares no bounds that would clamp an
+  // unexpected vendor code and no unit of measurement.
+  assert.equal(effectiveLevel.type, 'number');
+  assert.equal(effectiveLevel.getable, true);
+  assert.equal(effectiveLevel.setable, false);
+  assert.equal(effectiveLevel.uiComponent, 'sensor');
+  assert.equal(effectiveLevel.step, 1);
+  assert.equal(effectiveLevel.decimals, 0);
+  assert.equal(Object.hasOwn(effectiveLevel, 'units'), false);
+  assert.equal(Object.hasOwn(effectiveLevel, 'min'), false);
+  assert.equal(Object.hasOwn(effectiveLevel, 'max'), false);
+  assert.equal(effectiveLevel.title.en, 'Effective ventilation level');
+  assert.equal(effectiveLevel.title.pl, 'Efektywny poziom wentylacji');
+  const modeNumberIndex = requiredCapabilities.indexOf('measure_vasco_mode');
+  assert.equal(requiredCapabilities[modeNumberIndex + 1], 'measure_vasco_level');
   assert.ok(diagnostics.every(capability => capability.getable && !capability.setable));
 });
 

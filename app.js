@@ -58,6 +58,14 @@ module.exports = class VascoKermiXApp extends Homey.App {
     condition('mode_is', ({ device, mode }) => (
       requiredDevice(device).getCapabilityValue('vasco_mode') === mode
     ));
+    // The effective level answers "is it actually running at this gear",
+    // which is the question a verification flow means to ask. `mode_is`
+    // answers "was this gear selected", a control setting that can be right
+    // while the machine is elsewhere.
+    condition('level_is', ({ device, level }) => {
+      const value = requiredDevice(device).getCapabilityValue('measure_vasco_level');
+      return Number.isFinite(value) && value === Number(level);
+    });
     condition('fireplace_is_active', ({ device }) => (
       requiredDevice(device).getCapabilityValue('vasco_fireplace') === true
     ));

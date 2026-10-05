@@ -19,10 +19,14 @@ const DEFAULT_POLL_INTERVAL = 60;
 const DEFAULT_MODE_MINUTES = 60;
 const DEFAULT_FIREPLACE_MINUTES = 5;
 const DEVICE_CONTRACT_VERSION = 5;
+// Capabilities added to already-paired devices on every initialization. The
+// loop is idempotent and runs before the versioned migration steps, so a new
+// entry reaches existing devices without its own contract version.
 const DEVICE_CONTRACT_CAPABILITIES = [
   'measure_vasco_mode',
   'vasco_fireplace_duration',
   'vasco_control_duration',
+  'measure_vasco_level',
 ];
 const SETTINGS_UNCHANGED_MESSAGE =
   'Could not validate Vasco credentials. Settings were not changed.';
@@ -36,9 +40,15 @@ const MODE_BY_LEVEL = new Map(
 const POLLING_COORDINATOR = Symbol('vascoPollingCoordinator');
 
 const CAPABILITIES = Object.freeze([
+  // Both mode capabilities carry the SELECTED mode, which the mapper reads
+  // from whichever field actually holds it (see `selectedMode`), while the
+  // effective ventilation level the unit runs at has its own sensor.
   ['vasco_mode', state => MODE_BY_LEVEL.get(state.mode) ?? null],
   ['measure_vasco_mode', state => (
     MODE_BY_LEVEL.has(state.mode) ? state.mode : null
+  )],
+  ['measure_vasco_level', state => (
+    Number.isFinite(state.effectiveLevel) ? state.effectiveLevel : null
   )],
   ['measure_temperature.indoor', state => state.indoorTemperature],
   ['measure_temperature.outdoor', state => state.outdoorTemperature],
@@ -80,6 +90,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     this.accountService = null;
     this.stateInitialized = false;
     this.lastObservedState = null;
+    this.lastModeDivergence = null;
     this.lastAvailability = null;
     this.stateQueue = Promise.resolve();
     this.deleted = false;
@@ -192,9 +203,17 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
 
   async applyStateNow(state, { initial = false } = {}) {
     if (this.deleted) return false;
+    this.logModeDivergence(state);
+    this.logStoppedFans(state);
     const changes = new Map();
     for (const [capability, mapValue] of CAPABILITIES) {
       if (this.deleted) return false;
+      // The effective level answers "what is the unit doing", so it may only
+      // come from an observation. A command acknowledgement carries the level
+      // we ASKED for; writing it here would let a verification flow confirm a
+      // level the machine had not reached yet.
+      if (capability === 'measure_vasco_level' && state.fromAcknowledgement) continue;
+
       const value = mapValue(state, this);
       if (value === undefined
         || (value === null && capability !== 'vasco_override_end')) continue;
@@ -218,6 +237,50 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
       .then(() => (this.deleted ? false : operation()));
     this.stateQueue = queued;
     return queued;
+  }
+
+  // The selected mode and the effective ventilation level legitimately differ
+  // (Holidays, Fireplace, Controller). Record each distinct pair once so a
+  // future discrepancy is visible in the app log without flooding it on every
+  // poll.
+  logModeDivergence(state) {
+    const { mode, effectiveLevel } = state;
+    if (!Number.isFinite(mode) || !Number.isFinite(effectiveLevel)
+      || mode === effectiveLevel) {
+      this.lastModeDivergence = null;
+      return;
+    }
+
+    const divergence = `${mode}:${effectiveLevel}`;
+    if (this.lastModeDivergence === divergence) return;
+    this.lastModeDivergence = divergence;
+    this.log('Vasco selected mode differs from the effective ventilation level', {
+      mode,
+      effectiveLevel,
+    });
+  }
+
+  // A unit that reports a running ventilation level while both fans read zero
+  // is contradicting itself, and no amount of reading the control fields will
+  // reveal it. Fan speed is a poor witness for WHICH gear is running - it is
+  // a measured value that moves with duct resistance, bypass and filters - but
+  // it is a good witness for whether anything is running at all.
+  logStoppedFans(state) {
+    const { effectiveLevel, fanSpeedInlet, fanSpeedExhaust } = state;
+    const running = Number.isFinite(effectiveLevel) && effectiveLevel > 0;
+    const stopped = fanSpeedInlet === 0 && fanSpeedExhaust === 0;
+    if (!running || !stopped) {
+      this.lastStoppedFans = false;
+      return;
+    }
+
+    if (this.lastStoppedFans) return;
+    this.lastStoppedFans = true;
+    this.log('Vasco reports a running ventilation level while both fans read zero', {
+      effectiveLevel,
+      fanSpeedInlet,
+      fanSpeedExhaust,
+    });
   }
 
   rememberObservedState(state) {
@@ -293,8 +356,8 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
           const confirmed = isModeConfirmed(observed, request);
           if (!confirmed) {
             this.log('Vasco mode confirmation pending', {
-              requestedMode: observed.requestedMode,
-              effectiveMode: observed.mode,
+              mode: observed.mode,
+              effectiveLevel: observed.effectiveLevel,
               controlMode: observed.controlMode,
               manualSettingActiveTill: observed.manualSettingActiveTill,
             });

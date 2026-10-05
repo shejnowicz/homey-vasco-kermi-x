@@ -28,11 +28,17 @@ over RF.
 - A Fireplace device toggle that enables the selected duration of 5–85 minutes
 - Indoor and outdoor temperatures, supply and exhaust fan readings, bypass and
   controller state, override end time, and available fault indicators
+- The effective ventilation level as its own sensor, next to the selected
+  operating mode, because a unit often runs at a level that differs from the
+  mode it was set to
 - Multiple ventilation units on one account
 - Homey Flow actions, conditions, and device-state triggers
 
 Controller mode (level 5) is available in the mode picker and Flow cards.
 X500 reports Controller as effective level 13, normalized to mode 5 in Homey.
+The operating mode follows the mode the unit was asked for, not the level it
+happens to run at; units that do not report a requested mode fall back to that
+level.
 Command confirmation requires observed state, not just a write acknowledgement.
 Turn Fireplace mode off with the device toggle to send the vendor's zero-minute command.
 

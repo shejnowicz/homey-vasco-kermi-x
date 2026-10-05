@@ -42,6 +42,7 @@ test('driver Flow manifest defines every approved bilingual card with safe argum
       mode_is: labels('Operating mode', 'Tryb pracy', 'Operating mode !{{is|isn\'t}} [[mode]]', 'Tryb pracy !{{to|nie jest}} [[mode]]'),
       fireplace_is_active: labels('Fireplace mode', 'Tryb kominka', 'Fireplace mode !{{is|isn\'t}} active', 'Tryb kominka !{{jest|nie jest}} aktywny'),
       manual_override_is_active: labels('Manual override', 'Ręczne sterowanie', 'Manual override !{{is|isn\'t}} active', 'Ręczne sterowanie !{{jest|nie jest}} aktywne'),
+      level_is: labels('Effective ventilation level', 'Rzeczywisty bieg wentylacji', 'Effective ventilation level !{{is|isn\'t}} [[level]]', 'Rzeczywisty bieg wentylacji !{{to|nie jest}} [[level]]'),
       control_duration_is: labels('Control duration', 'Sposób sterowania', 'Control duration !{{is|isn\'t}} [[duration]]', 'Sposób sterowania !{{to|nie jest}} [[duration]]'),
       filter_attention: labels('Filter attention', 'Uwaga dotycząca filtra', 'Filter !{{requires|doesn\'t require}} attention', 'Filtr !{{wymaga|nie wymaga}} uwagi'),
       fault_present: labels('Fault', 'Usterka', 'Device !{{has|doesn\'t have}} a fault', 'Urządzenie !{{ma|nie ma}} usterki'),
@@ -179,6 +180,7 @@ function createDevice() {
     ['vasco_fireplace', true],
     ['vasco_control_state', 'manual'],
     ['vasco_control_duration', 'until_schedule'],
+    ['measure_vasco_level', 1],
     ['alarm_filter', true],
     ['alarm_generic', true],
     ['alarm_defrost', true],
@@ -241,6 +243,14 @@ test('app registers Flow listeners once, delegates safely, and delivers device t
   for (const duration of ['until_schedule', 'permanent', 'timed']) {
     assert.equal(await controlDuration({ device, duration }), false);
   }
+  const levelIs = conditions.get('level_is').listeners[0];
+  assert.equal(await levelIs({ device, level: '1' }), true);
+  assert.equal(await levelIs({ device, level: '2' }), false);
+  // No observation yet: the card must not claim a level it has never seen.
+  device.values.set('measure_vasco_level', null);
+  assert.equal(await levelIs({ device, level: '1' }), false);
+  device.values.set('measure_vasco_level', 1);
+
   assert.equal(await conditions.get('filter_attention').listeners[0]({ device }), true);
   assert.equal(await conditions.get('fault_present').listeners[0]({ device }), true);
   assert.equal(await conditions.get('defrost_active').listeners[0]({ device }), true);

@@ -161,6 +161,7 @@ test('device contract migration adds the missing controls and changes the pre-re
     'measure_vasco_mode',
     'vasco_fireplace_duration',
     'vasco_control_duration',
+    'measure_vasco_level',
   ]);
   assert.deepEqual(device.settingsWrites, [
     { default_duration_type: 'schedule' },
@@ -182,6 +183,7 @@ test('Fireplace duration migration upgrades version one with the nearest support
   assert.deepEqual(device.capabilityAdds, [
     'vasco_fireplace_duration',
     'vasco_control_duration',
+    'measure_vasco_level',
   ]);
   assert.deepEqual(device.capabilityRemovals, ['button.enable_fireplace']);
   assert.deepEqual(device.capabilityWrites, [['vasco_fireplace_duration', '45']]);
@@ -218,7 +220,7 @@ test('control duration migration upgrades version two and preserves the Fireplac
 
   assert.deepEqual(device.settingsWrites, []);
   assert.deepEqual(device.capabilityWrites, []);
-  assert.deepEqual(device.capabilityAdds, ['vasco_control_duration']);
+  assert.deepEqual(device.capabilityAdds, ['vasco_control_duration', 'measure_vasco_level']);
   assert.deepEqual(device.capabilityRemovals, [
     'measure_fireplace_remaining',
     'button.enable_fireplace',
@@ -236,6 +238,7 @@ test('device contract version five preserves existing capabilities and values', 
     'measure_vasco_mode',
     'vasco_fireplace_duration',
     'vasco_control_duration',
+    'measure_vasco_level',
   ]) device.availableCapabilities.add(capability);
 
   await device.ensureDeviceContract();
@@ -243,6 +246,25 @@ test('device contract version five preserves existing capabilities and values', 
   assert.deepEqual(device.capabilityAdds, []);
   assert.deepEqual(device.capabilityWrites, []);
   assert.deepEqual(device.storeWrites, []);
+  assert.equal(device.getCapabilityValue('vasco_control_duration'), 'permanent');
+});
+
+test('an already-paired device gains the effective ventilation level sensor', async () => {
+  const { device } = createHarness();
+  device.store.device_contract_version = 5;
+  device.capabilities.set('vasco_control_duration', 'permanent');
+  for (const capability of [
+    'measure_vasco_mode',
+    'vasco_fireplace_duration',
+    'vasco_control_duration',
+  ]) device.availableCapabilities.add(capability);
+
+  await device.ensureDeviceContract();
+
+  assert.deepEqual(device.capabilityAdds, ['measure_vasco_level']);
+  assert.equal(device.hasCapability('measure_vasco_level'), true);
+  assert.deepEqual(device.capabilityRemovals, []);
+  assert.deepEqual(device.capabilityWrites, []);
   assert.equal(device.getCapabilityValue('vasco_control_duration'), 'permanent');
 });
 
@@ -319,6 +341,7 @@ test('device contract migration completes before account acquisition and listene
     'add:measure_vasco_mode',
     'add:vasco_fireplace_duration',
     'add:vasco_control_duration',
+    'add:measure_vasco_level',
     'settings',
     'capability:vasco_fireplace_duration:5',
     'store:device_contract_version:5',
@@ -351,7 +374,7 @@ class AccountServiceDouble {
     if (confirm === null) return null;
     const state = {
       mode: command.nextValue,
-      requestedMode: command.nextValue,
+      effectiveLevel: command.level,
       controlMode: command.controlMode,
       manualSettingActiveTill: command.manualSettingActiveTill,
       fanSpeedInlet: 41,
@@ -479,7 +502,11 @@ test('initialization acquires the shared account, registers controls, syncs befo
   assert.equal(service.reads.length, 1);
   assert.equal(service.pollingStarts.length, 1);
   assert.equal(service.pollingStarts[0].intervalSeconds, 60);
-  assert.equal(device.capabilities.get('vasco_mode'), 'medium');
+  // The fixture reports requestedLevel 3 while running at effective level 2:
+  // the mode capabilities follow the selection, the new sensor the level.
+  assert.equal(device.capabilities.get('vasco_mode'), 'high');
+  assert.equal(device.capabilities.get('measure_vasco_mode'), 3);
+  assert.equal(device.capabilities.get('measure_vasco_level'), 2);
   assert.equal(device.capabilities.get('measure_temperature.indoor'), 21.4);
   assert.equal(device.capabilities.get('measure_temperature.outdoor'), 17.5);
   assert.equal(device.capabilityWrites.some(([id]) => id === 'measure_temperature.outdoor'), false);
@@ -492,7 +519,7 @@ test('applyState writes only changed non-null capabilities and emits post-initia
   const { device, transitions } = createHarness();
   await device.applyState({
     mode: 2,
-    requestedMode: 2,
+    effectiveLevel: 2,
     indoorTemperature: 21,
     outdoorTemperature: null,
     fanSpeedInlet: 40,
@@ -510,7 +537,7 @@ test('applyState writes only changed non-null capabilities and emits post-initia
 
   await device.applyState({
     mode: 3,
-    requestedMode: 3,
+    effectiveLevel: 1,
     indoorTemperature: 21,
     outdoorTemperature: null,
     fanSpeedInlet: 40,
@@ -528,6 +555,7 @@ test('applyState writes only changed non-null capabilities and emits post-initia
   assert.deepEqual(device.capabilityWrites, [
     ['vasco_mode', 'high'],
     ['measure_vasco_mode', 3],
+    ['measure_vasco_level', 1],
     ['vasco_fireplace', true],
     ['alarm_filter', true],
     ['alarm_generic', false],
@@ -543,7 +571,8 @@ test('applyState writes only changed non-null capabilities and emits post-initia
 test('control duration synchronization maps all states and clears an expired timed override', async () => {
   const { device } = createHarness();
   const baseState = {
-    requestedMode: 2,
+    mode: 2,
+    effectiveLevel: 2,
     fireplaceModeStatus: 0,
   };
 
@@ -622,18 +651,19 @@ test('mode number synchronization writes each supported requested operating mode
     [6, 'holidays'],
     [7, 'guests'],
   ]) {
-    await device.applyState({ ...baseState, mode: level, requestedMode: level }, { initial: true });
+    await device.applyState({ ...baseState, mode: level, effectiveLevel: level }, { initial: true });
     assert.equal(device.getCapabilityValue('vasco_mode'), mode);
     assert.equal(device.getCapabilityValue('measure_vasco_mode'), level);
+    assert.equal(device.getCapabilityValue('measure_vasco_level'), level);
   }
 });
 
-test('effective level wins over shifted requested level while Fireplace mode is active', async () => {
+test('the selected mode survives a shifted effective level while Fireplace mode is active', async () => {
   const { device } = createHarness();
 
   await device.applyState({
-    mode: 1,
-    requestedMode: 2,
+    mode: 2,
+    effectiveLevel: 1,
     controlMode: 'schedule',
     manualSettingActiveTill: 0,
     fireplaceModeStatus: 1,
@@ -641,8 +671,48 @@ test('effective level wins over shifted requested level while Fireplace mode is 
     fanSpeedExhaust: 26,
   }, { initial: true });
 
-  assert.equal(device.getCapabilityValue('vasco_mode'), 'low');
-  assert.equal(device.getCapabilityValue('measure_vasco_mode'), 1);
+  assert.equal(device.getCapabilityValue('vasco_mode'), 'medium');
+  assert.equal(device.getCapabilityValue('measure_vasco_mode'), 2);
+  assert.equal(device.getCapabilityValue('measure_vasco_level'), 1);
+});
+
+test('the effective level sensor reports vendor codes outside the mode range', async () => {
+  const { device } = createHarness();
+
+  await device.applyState({
+    mode: 6,
+    effectiveLevel: 13,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+  }, { initial: true });
+
+  assert.equal(device.getCapabilityValue('vasco_mode'), 'holidays');
+  assert.equal(device.getCapabilityValue('measure_vasco_mode'), 6);
+  assert.equal(device.getCapabilityValue('measure_vasco_level'), 13);
+});
+
+test('a diverging effective level is logged once per distinct pair', async () => {
+  const { device } = createHarness();
+  const base = { controlMode: 'schedule', manualSettingActiveTill: 0 };
+  const divergences = () => device.logged.filter(
+    ([message]) => message === 'Vasco selected mode differs from the effective ventilation level',
+  );
+
+  await device.applyState({ ...base, mode: 6, effectiveLevel: 4 }, { initial: true });
+  await device.applyState({ ...base, mode: 6, effectiveLevel: 4 }, { initial: false });
+  assert.deepEqual(divergences(), [[
+    'Vasco selected mode differs from the effective ventilation level',
+    { mode: 6, effectiveLevel: 4 },
+  ]]);
+
+  await device.applyState({ ...base, mode: 6, effectiveLevel: 3 }, { initial: false });
+  assert.equal(divergences().length, 2);
+
+  await device.applyState({ ...base, mode: 2, effectiveLevel: 2 }, { initial: false });
+  assert.equal(divergences().length, 2);
+
+  await device.applyState({ ...base, mode: 6, effectiveLevel: 3 }, { initial: false });
+  assert.equal(divergences().length, 3);
 });
 
 test('RF status zero is healthy and a non-zero status raises the alarm', async () => {
@@ -677,6 +747,9 @@ test('optimistic mode acknowledgement applies both mode values before a later po
   });
   assert.equal(device.capabilities.get('vasco_mode'), 'auto');
   assert.equal(device.capabilities.get('measure_vasco_mode'), 4);
+  // The acknowledged state carries the requested mode; the effective level
+  // stays where the unit was until the next read observes it.
+  assert.equal(device.capabilities.get('measure_vasco_level'), 2);
   assert.equal(device.capabilities.get('vasco_control_duration'), 'timed');
   assert.equal(service.reads.length, 1);
 });
@@ -1419,25 +1492,26 @@ test('concurrent state applications are serialized in observation order', async 
   const releaseFirstWrite = deferred();
   const originalSetCapabilityValue = device.setCapabilityValue.bind(device);
   device.setCapabilityValue = async (capability, value) => {
-    if (capability === 'vasco_mode' && value === 'high') {
+    if (capability === 'vasco_mode' && value === 'low') {
       firstWrite.resolve();
       await releaseFirstWrite.promise;
     }
     return originalSetCapabilityValue(capability, value);
   };
+  // The fixture selects mode 3, so the device starts this test on 'high'.
   const base = toDeviceState(fixture.deviceProperties[0]);
 
-  const first = device.applyState({ ...base, mode: 3 }, { initial: false });
+  const first = device.applyState({ ...base, mode: 1 }, { initial: false });
   await firstWrite.promise;
-  const second = device.applyState({ ...base, mode: 1 }, { initial: false });
+  const second = device.applyState({ ...base, mode: 2 }, { initial: false });
   await settle();
   releaseFirstWrite.resolve();
   await Promise.all([first, second]);
 
-  assert.equal(device.capabilities.get('vasco_mode'), 'low');
+  assert.equal(device.capabilities.get('vasco_mode'), 'medium');
   assert.deepEqual(transitions.map(({ event, tokens }) => ({ event, tokens })), [
-    { event: 'mode_changed', tokens: { previous_mode: 'medium', new_mode: 'high' } },
     { event: 'mode_changed', tokens: { previous_mode: 'high', new_mode: 'low' } },
+    { event: 'mode_changed', tokens: { previous_mode: 'low', new_mode: 'medium' } },
   ]);
 });
 
@@ -1458,7 +1532,6 @@ test('deletion prevents an in-flight synchronization from writing further state 
   };
   const state = {
     ...toDeviceState(fixture.deviceProperties[0]),
-    requestedMode: 2,
     indoorTemperature: 19,
   };
 
@@ -1571,4 +1644,76 @@ test('external Controller activation updates both Homey modes and leaving it res
     assert.equal(device.getCapabilityValue('vasco_mode'), expectedMode);
     assert.equal(device.getCapabilityValue('measure_vasco_mode'), expectedNumber);
   }
+});
+
+test('a unit claiming to run while both fans read zero is warned about once', async () => {
+  const { device } = createHarness();
+  const base = { mode: 1, controlMode: 'schedule', manualSettingActiveTill: 0 };
+  const warnings = () => device.logged.filter(
+    ([message]) => message === 'Vasco reports a running ventilation level while both fans read zero',
+  );
+
+  await device.applyState({
+    ...base, effectiveLevel: 1, fanSpeedInlet: 26, fanSpeedExhaust: 26,
+  }, { initial: true });
+  assert.equal(warnings().length, 0);
+
+  await device.applyState({
+    ...base, effectiveLevel: 1, fanSpeedInlet: 0, fanSpeedExhaust: 0,
+  });
+  assert.equal(warnings().length, 1);
+
+  // The same contradiction on the next poll must not repeat the warning.
+  await device.applyState({
+    ...base, effectiveLevel: 1, fanSpeedInlet: 0, fanSpeedExhaust: 0,
+  });
+  assert.equal(warnings().length, 1);
+
+  // Clearing it and hitting it again is a new event and is warned about again.
+  await device.applyState({
+    ...base, effectiveLevel: 1, fanSpeedInlet: 26, fanSpeedExhaust: 26,
+  });
+  await device.applyState({
+    ...base, effectiveLevel: 1, fanSpeedInlet: 0, fanSpeedExhaust: 0,
+  });
+  assert.equal(warnings().length, 2);
+});
+
+test('a stopped unit with stopped fans is not a contradiction', async () => {
+  const { device } = createHarness();
+
+  await device.applyState({
+    mode: 1,
+    effectiveLevel: 0,
+    fanSpeedInlet: 0,
+    fanSpeedExhaust: 0,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+  }, { initial: true });
+
+  assert.equal(device.logged.filter(
+    ([message]) => message === 'Vasco reports a running ventilation level while both fans read zero',
+  ).length, 0);
+});
+
+test('state built from a command acknowledgement never moves the effective level', async () => {
+  const { device } = createHarness();
+
+  await device.applyState({
+    mode: 2, effectiveLevel: 2, controlMode: 'schedule', manualSettingActiveTill: 0,
+  }, { initial: true });
+  assert.equal(device.getCapabilityValue('measure_vasco_level'), 2);
+
+  // The acknowledgement carries the level we asked for, not one the unit
+  // reported. The selected mode may move; the effective level may not.
+  await device.applyState({
+    mode: 1,
+    effectiveLevel: 1,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+    fromAcknowledgement: true,
+  });
+
+  assert.equal(device.getCapabilityValue('measure_vasco_mode'), 1);
+  assert.equal(device.getCapabilityValue('measure_vasco_level'), 2);
 });

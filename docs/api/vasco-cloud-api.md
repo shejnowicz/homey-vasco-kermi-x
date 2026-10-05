@@ -66,9 +66,27 @@ Homey-to-Vasco activation; a subsequent read while Controller was active in the
 official app returned effective `level: 13` and `requestedLevel: null` on X500.
 Normalize that observed effective code to canonical mode 5 at the read boundary.
 Keep the original raw object unchanged for subsequent complete-object writes.
-Do not normalize other unknown levels or infer Controller from requestedLevel.
-Command confirmation still requires an observed effective Controller state;
-a write acknowledgement alone is insufficient.
+Do not normalize other unknown levels.
+Command confirmation still requires observed state; a write acknowledgement
+alone is insufficient.
+
+### Selected mode and effective level are different fields
+
+`requestedLevel` carries the selected mode on the canonical scale above.
+`level` carries the ventilation level the unit is effectively running at, on the
+vendor's own scale, where Controller appears as 13. The two differ routinely: on
+2026-09-29 a unit set to Holidays (canonical 6) reported effective `level: 4`.
+Which field carries the selected mode depends on how the setting was made.
+For a permanent setting (`manualSettingActiveTill: -1`) it is `requestedLevel`.
+While a setting runs until the next schedule change, it is `nextValue`, with
+`nextParameter` naming the field it applies to; `requestedLevel` then keeps
+whatever an earlier override left there and must not be trusted. Recorded
+overnight on 2026-10-06: a unit set to mode 1 at midnight ran at level 1 and
+reported `nextValue: 1` while `requestedLevel` still said 2 from the evening
+before. Fall back to the normalized effective level only when neither
+mode-bearing field is usable, as X500 needs on a plain schedule read. Expose the effective level separately instead of presenting it as
+the mode. Confirm a mode command against the canonical selected mode; comparing
+it with the effective level can never confirm a mode that runs at another level.
 
 ### Standard-mode duration
 
