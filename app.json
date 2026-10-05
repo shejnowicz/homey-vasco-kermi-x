@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "com.shejnowicz.vasco-kermi-x",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "compatibility": ">=12.4.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -332,6 +332,59 @@
           }
         ],
         "id": "fireplace_is_active"
+      },
+      {
+        "title": {
+          "en": "Effective ventilation level",
+          "pl": "Rzeczywisty bieg wentylacji"
+        },
+        "titleFormatted": {
+          "en": "Effective ventilation level !{{is|isn't}} [[level]]",
+          "pl": "Rzeczywisty bieg wentylacji !{{to|nie jest}} [[level]]"
+        },
+        "hint": {
+          "en": "Asks what the unit is actually running at, rather than which mode is selected. Use this to verify that a mode change took effect: the selected mode is a control setting, the effective level is what the machine does.",
+          "pl": "Pyta, na czym urządzenie faktycznie pracuje, a nie jaki tryb jest wybrany. Użyj tego, żeby sprawdzić, czy zmiana trybu naprawdę zadziałała: wybrany tryb to nastawa, a rzeczywisty bieg to zachowanie maszyny."
+        },
+        "args": [
+          {
+            "name": "device",
+            "type": "device",
+            "filter": "driver_id=vasco-kermi-x"
+          },
+          {
+            "name": "level",
+            "type": "dropdown",
+            "title": {
+              "en": "Level",
+              "pl": "Bieg"
+            },
+            "values": [
+              {
+                "id": "1",
+                "title": {
+                  "en": "1",
+                  "pl": "1"
+                }
+              },
+              {
+                "id": "2",
+                "title": {
+                  "en": "2",
+                  "pl": "2"
+                }
+              },
+              {
+                "id": "3",
+                "title": {
+                  "en": "3",
+                  "pl": "3"
+                }
+              }
+            ]
+          }
+        ],
+        "id": "level_is"
       },
       {
         "title": {

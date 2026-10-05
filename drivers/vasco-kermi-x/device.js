@@ -40,8 +40,9 @@ const MODE_BY_LEVEL = new Map(
 const POLLING_COORDINATOR = Symbol('vascoPollingCoordinator');
 
 const CAPABILITIES = Object.freeze([
-  // Both mode capabilities carry the SELECTED mode (`requestedLevel`), while
-  // the effective ventilation level the unit runs at has its own sensor.
+  // Both mode capabilities carry the SELECTED mode, which the mapper reads
+  // from whichever field actually holds it (see `selectedMode`), while the
+  // effective ventilation level the unit runs at has its own sensor.
   ['vasco_mode', state => MODE_BY_LEVEL.get(state.mode) ?? null],
   ['measure_vasco_mode', state => (
     MODE_BY_LEVEL.has(state.mode) ? state.mode : null
@@ -203,6 +204,7 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
   async applyStateNow(state, { initial = false } = {}) {
     if (this.deleted) return false;
     this.logModeDivergence(state);
+    this.logStoppedFans(state);
     const changes = new Map();
     for (const [capability, mapValue] of CAPABILITIES) {
       if (this.deleted) return false;
@@ -249,6 +251,29 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     this.log('Vasco selected mode differs from the effective ventilation level', {
       mode,
       effectiveLevel,
+    });
+  }
+
+  // A unit that reports a running ventilation level while both fans read zero
+  // is contradicting itself, and no amount of reading the control fields will
+  // reveal it. Fan speed is a poor witness for WHICH gear is running - it is
+  // a measured value that moves with duct resistance, bypass and filters - but
+  // it is a good witness for whether anything is running at all.
+  logStoppedFans(state) {
+    const { effectiveLevel, fanSpeedInlet, fanSpeedExhaust } = state;
+    const running = Number.isFinite(effectiveLevel) && effectiveLevel > 0;
+    const stopped = fanSpeedInlet === 0 && fanSpeedExhaust === 0;
+    if (!running || !stopped) {
+      this.lastStoppedFans = false;
+      return;
+    }
+
+    if (this.lastStoppedFans) return;
+    this.lastStoppedFans = true;
+    this.log('Vasco reports a running ventilation level while both fans read zero', {
+      effectiveLevel,
+      fanSpeedInlet,
+      fanSpeedExhaust,
     });
   }
 

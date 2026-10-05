@@ -253,3 +253,59 @@ test('a missing requestedLevel falls back to the effective level for both values
 function pickLevels({ mode, effectiveLevel }) {
   return { mode, effectiveLevel };
 }
+
+// Recorded from the owner's X500 overnight on 2026-10-06. The unit had been
+// set to mode 1 "until the next schedule change" and was running there, while
+// `requestedLevel` still held 2 from an override made the evening before.
+// Reading the mode from `requestedLevel` made the schedule flow retry five
+// times and then report a failure for a change that had succeeded.
+test('a setting that runs until the next schedule change takes the mode from nextValue', () => {
+  const state = toDeviceState(realX500Shape({
+    level: 1,
+    requestedLevel: 2,
+    nextParameter: 'requestedLevel',
+    nextValue: 1,
+    manualSettingActiveTill: 0,
+    actualFanSpeedInlet: 26,
+    actualFanSpeedExhaust: 26,
+  }));
+
+  assert.equal(state.mode, 1);
+  assert.equal(state.effectiveLevel, 1);
+});
+
+test('a permanent setting takes the mode from requestedLevel', () => {
+  const state = toDeviceState(realX500Shape({
+    level: 3,
+    requestedLevel: 3,
+    nextParameter: 'requestedLevel',
+    nextValue: 1,
+    manualSettingActiveTill: -1,
+  }));
+
+  assert.equal(state.mode, 3);
+});
+
+test('a unit reporting neither field falls back to the effective level', () => {
+  const state = toDeviceState(realX500Shape({
+    level: 2,
+    requestedLevel: null,
+    nextParameter: null,
+    nextValue: null,
+    manualSettingActiveTill: 0,
+  }));
+
+  assert.equal(state.mode, 2);
+});
+
+test('nextValue is ignored when it does not name the mode field', () => {
+  const state = toDeviceState(realX500Shape({
+    level: 2,
+    requestedLevel: 3,
+    nextParameter: 'somethingElse',
+    nextValue: 1,
+    manualSettingActiveTill: 0,
+  }));
+
+  assert.equal(state.mode, 3);
+});
