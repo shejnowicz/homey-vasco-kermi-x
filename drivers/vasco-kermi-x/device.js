@@ -208,6 +208,12 @@ module.exports = class VascoKermiXDevice extends Homey.Device {
     const changes = new Map();
     for (const [capability, mapValue] of CAPABILITIES) {
       if (this.deleted) return false;
+      // The effective level answers "what is the unit doing", so it may only
+      // come from an observation. A command acknowledgement carries the level
+      // we ASKED for; writing it here would let a verification flow confirm a
+      // level the machine had not reached yet.
+      if (capability === 'measure_vasco_level' && state.fromAcknowledgement) continue;
+
       const value = mapValue(state, this);
       if (value === undefined
         || (value === null && capability !== 'vasco_override_end')) continue;

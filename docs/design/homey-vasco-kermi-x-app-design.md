@@ -112,7 +112,7 @@ Values absent on a particular model are unavailable or hidden; missing values mu
 
 `Controller` mode (level 5) is enabled by the owner's 2026-09-11 scope update. The owner confirmed Homey-to-Vasco activation. A live read with Controller active returned effective `level: 13`; the mapper normalizes this to canonical mode 5. Verification of the updated Homey readback remains pending deployment.
 
-The operating mode is the mode the unit was asked for (`requestedLevel`), not the level it is effectively running at (`level`). The two are different scales and differ routinely: on 2026-09-29 a unit set to Holidays (canonical 6) reported effective `level: 4`, which Homey displayed as Auto. Units that do not report `requestedLevel` fall back to the normalized effective level, which is what X500 needs on a schedule read.
+The operating mode is the mode the unit was asked for, not the level it is effectively running at (`level`). It comes from `requestedLevel` for a permanent setting and from `nextValue` while a setting runs until the next schedule change, because `requestedLevel` then holds a stale value from an earlier override; reading it unconditionally made Homey report the previous mode and made the schedule flow announce a failure for a change that had succeeded (recorded 2026-10-06). The two are different scales and differ routinely: on 2026-09-29 a unit set to Holidays (canonical 6) reported effective `level: 4`, which Homey displayed as Auto. Units that do not report `requestedLevel` fall back to the normalized effective level, which is what X500 needs on a schedule read.
 
 ### Control from the device view
 

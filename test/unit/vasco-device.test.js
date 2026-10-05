@@ -1645,3 +1645,75 @@ test('external Controller activation updates both Homey modes and leaving it res
     assert.equal(device.getCapabilityValue('measure_vasco_mode'), expectedNumber);
   }
 });
+
+test('a unit claiming to run while both fans read zero is warned about once', async () => {
+  const { device } = createHarness();
+  const base = { mode: 1, controlMode: 'schedule', manualSettingActiveTill: 0 };
+  const warnings = () => device.logged.filter(
+    ([message]) => message === 'Vasco reports a running ventilation level while both fans read zero',
+  );
+
+  await device.applyState({
+    ...base, effectiveLevel: 1, fanSpeedInlet: 26, fanSpeedExhaust: 26,
+  }, { initial: true });
+  assert.equal(warnings().length, 0);
+
+  await device.applyState({
+    ...base, effectiveLevel: 1, fanSpeedInlet: 0, fanSpeedExhaust: 0,
+  });
+  assert.equal(warnings().length, 1);
+
+  // The same contradiction on the next poll must not repeat the warning.
+  await device.applyState({
+    ...base, effectiveLevel: 1, fanSpeedInlet: 0, fanSpeedExhaust: 0,
+  });
+  assert.equal(warnings().length, 1);
+
+  // Clearing it and hitting it again is a new event and is warned about again.
+  await device.applyState({
+    ...base, effectiveLevel: 1, fanSpeedInlet: 26, fanSpeedExhaust: 26,
+  });
+  await device.applyState({
+    ...base, effectiveLevel: 1, fanSpeedInlet: 0, fanSpeedExhaust: 0,
+  });
+  assert.equal(warnings().length, 2);
+});
+
+test('a stopped unit with stopped fans is not a contradiction', async () => {
+  const { device } = createHarness();
+
+  await device.applyState({
+    mode: 1,
+    effectiveLevel: 0,
+    fanSpeedInlet: 0,
+    fanSpeedExhaust: 0,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+  }, { initial: true });
+
+  assert.equal(device.logged.filter(
+    ([message]) => message === 'Vasco reports a running ventilation level while both fans read zero',
+  ).length, 0);
+});
+
+test('state built from a command acknowledgement never moves the effective level', async () => {
+  const { device } = createHarness();
+
+  await device.applyState({
+    mode: 2, effectiveLevel: 2, controlMode: 'schedule', manualSettingActiveTill: 0,
+  }, { initial: true });
+  assert.equal(device.getCapabilityValue('measure_vasco_level'), 2);
+
+  // The acknowledgement carries the level we asked for, not one the unit
+  // reported. The selected mode may move; the effective level may not.
+  await device.applyState({
+    mode: 1,
+    effectiveLevel: 1,
+    controlMode: 'schedule',
+    manualSettingActiveTill: 0,
+    fromAcknowledgement: true,
+  });
+
+  assert.equal(device.getCapabilityValue('measure_vasco_mode'), 1);
+  assert.equal(device.getCapabilityValue('measure_vasco_level'), 2);
+});
