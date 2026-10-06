@@ -33,6 +33,14 @@ test('app-owned account services use Homey lifecycle timers and are closed on un
       timers[id - 1].cleared = true;
     },
     notifications: { createNotification: async () => undefined },
+    // The app registers Flow cards during onInit. This stub was written before
+    // it did, and the file was missing from test/index.js, so the rot went
+    // unnoticed: every run outside the suite failed on `flow` being undefined.
+    flow: {
+      getActionCard: () => ({ registerRunListener: () => undefined }),
+      getConditionCard: () => ({ registerRunListener: () => undefined }),
+      getDeviceTriggerCard: () => ({ registerRunListener: () => undefined }),
+    },
   };
 
   await app.onInit();

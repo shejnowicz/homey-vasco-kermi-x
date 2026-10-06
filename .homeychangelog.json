@@ -1,4 +1,8 @@
 {
+  "1.0.11": {
+    "en": "Control state no longer contradicts control duration: a setting made permanently, or a timed override still running, now reports a manual state even though the unit keeps calling its control mode \"schedule\". Both values are derived from the same field, so they cannot disagree.",
+    "pl": "Stan sterowania nie przeczy już czasowi trwania: ustawienie na stałe oraz trwający override czasowy pokazują sterowanie ręczne, mimo że urządzenie dalej nazywa swój tryb sterowania harmonogramem. Obie wartości wyliczane są z tego samego pola, więc nie mogą się rozjechać."
+  },
   "1.0.10": {
     "en": "Fixes the operating mode reported for a setting made permanently: the unit leaves requestedLevel empty and carries the mode in the effective level, so the app no longer falls back to the next scheduled event and reports the previous mode. Operating mode and effective level are now recorded in Insights.",
     "pl": "Poprawia tryb pracy zgłaszany dla ustawienia wprowadzonego na stałe: urządzenie zostawia requestedLevel pusty i niesie tryb w poziomie efektywnym, więc aplikacja nie cofa się już do następnego zdarzenia harmonogramu i nie pokazuje poprzedniego biegu. Tryb pracy i poziom efektywny trafiają teraz do Insights."

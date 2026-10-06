@@ -13,7 +13,7 @@ const {
 } = require('../../lib/vasco-device-mapper');
 const { VascoAuthenticationError, VascoProtocolError } = require('../../lib/vasco-errors');
 const { MODES } = require('../../lib/vasco-modes');
-const { controlDurationValue } = require('../../lib/vasco-control-duration');
+const { controlDurationValue, controlStateValue } = require('../../lib/vasco-control-duration');
 
 const DEFAULT_POLL_INTERVAL = 60;
 const DEFAULT_MODE_MINUTES = 60;
@@ -55,10 +55,8 @@ const CAPABILITIES = Object.freeze([
   ['vasco_supply_fan', state => state.fanSpeedInlet],
   ['vasco_exhaust_fan', state => state.fanSpeedExhaust],
   ['vasco_bypass', state => state.bypassPosition],
-  ['vasco_control_state', state => (
-    state.controlMode === 'schedule' || state.controlMode === 'manual'
-      ? state.controlMode
-      : null
+  ['vasco_control_state', (state, device) => (
+    controlStateValue(state, device.getNow())
   )],
   ['vasco_control_duration', (state, device) => (
     controlDurationValue(state, device.getNow())
