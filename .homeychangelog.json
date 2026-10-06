@@ -1,4 +1,8 @@
 {
+  "1.0.10": {
+    "en": "Fixes the operating mode reported for a setting made permanently: the unit leaves requestedLevel empty and carries the mode in the effective level, so the app no longer falls back to the next scheduled event and reports the previous mode. Operating mode and effective level are now recorded in Insights.",
+    "pl": "Poprawia tryb pracy zgłaszany dla ustawienia wprowadzonego na stałe: urządzenie zostawia requestedLevel pusty i niesie tryb w poziomie efektywnym, więc aplikacja nie cofa się już do następnego zdarzenia harmonogramu i nie pokazuje poprzedniego biegu. Tryb pracy i poziom efektywny trafiają teraz do Insights."
+  },
   "1.0.9": {
     "en": "Read the operating mode from the field that actually holds it, so a mode set until the next schedule change is no longer reported as the previous one.",
     "pl": "Odczyt trybu pracy z pola, które naprawdę go niesie, więc tryb ustawiony do następnej zmiany harmonogramu nie jest już raportowany jako poprzedni."

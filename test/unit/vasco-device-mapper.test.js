@@ -274,16 +274,42 @@ test('a setting that runs until the next schedule change takes the mode from nex
   assert.equal(state.effectiveLevel, 1);
 });
 
-test('a permanent setting takes the mode from requestedLevel', () => {
+// Recorded from the owner's X500 on 2026-10-06 at 09:29, by sampling the cloud
+// payload while he switched the unit to mode 3 permanently from the Vasco app.
+// This is the shape the hardware actually produces for a permanent setting:
+// NO requestedLevel, the selected mode in `level`, and a `nextValue` still
+// holding 1 from a setting made two hours earlier. The previous version of this
+// test asserted an invented shape (`requestedLevel: 3`) that the unit never
+// sends, so it passed while Homey reported mode 1 for a unit running mode 3.
+test('a permanent setting with no requestedLevel takes the mode from the effective level', () => {
   const state = toDeviceState(realX500Shape({
     level: 3,
-    requestedLevel: 3,
+    requestedLevel: null,
+    nextParameter: 'requestedLevel',
+    nextValue: 1,
+    manualSettingActiveTill: -1,
+    controlMode: 'schedule',
+    actualFanSpeedInlet: 26,
+    actualFanSpeedExhaust: 26,
+  }));
+
+  assert.equal(state.mode, 3);
+  assert.equal(state.effectiveLevel, 3);
+});
+
+// Holidays is the counter-case: its effective level (4) differs from its mode
+// number (6), so there the unit DOES fill requestedLevel and it must win.
+test('a permanent setting with a requestedLevel still prefers it over the level', () => {
+  const state = toDeviceState(realX500Shape({
+    level: 4,
+    requestedLevel: 6,
     nextParameter: 'requestedLevel',
     nextValue: 1,
     manualSettingActiveTill: -1,
   }));
 
-  assert.equal(state.mode, 3);
+  assert.equal(state.mode, 6);
+  assert.equal(state.effectiveLevel, 4);
 });
 
 test('a unit reporting neither field falls back to the effective level', () => {

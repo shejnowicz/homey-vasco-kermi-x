@@ -25,7 +25,7 @@ test('Homey Store identity uses the D/T/X community product name', () => {
     pl: 'Steruj rekuperacją Vasco i Kermi połączoną przez bramkę',
   });
   assert.deepEqual(app.tags.pl, ['jakość powietrza', 'rekuperacja']);
-  assert.equal(app.version, '1.0.9');
+  assert.equal(app.version, '1.0.10');
 });
 
 test('Polish release surfaces use rekuperacja terminology', () => {
@@ -91,6 +91,22 @@ test('selected-mode correction release has bilingual changelog copy', () => {
   assert.match(changelog['1.0.9'].en, /until the next schedule change/i);
   assert.match(changelog['1.0.9'].pl, /pola, które naprawdę go niesie/i);
   assert.match(changelog['1.0.9'].pl, /do następnej zmiany harmonogramu/i);
+});
+
+test('permanent-mode correction release has bilingual changelog copy', () => {
+  const changelog = readJson('.homeychangelog.json');
+
+  assert.match(changelog['1.0.10'].en, /permanently/i);
+  assert.match(changelog['1.0.10'].en, /Insights/);
+  assert.match(changelog['1.0.10'].pl, /na stałe/);
+  assert.match(changelog['1.0.10'].pl, /Insights/);
+});
+
+test('mode and level are recorded in Insights', () => {
+  for (const name of ['measure_vasco_mode', 'measure_vasco_level']) {
+    const capability = readJson(`.homeycompose/capabilities/${name}.json`);
+    assert.equal(capability.insights, true, `${name} must be logged to Insights`);
+  }
 });
 
 for (const [filename, languagePattern] of [
