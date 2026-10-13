@@ -1,50 +1,54 @@
 {
-  "1.0.11": {
-    "en": "Control state no longer contradicts control duration: a setting made permanently, or a timed override still running, now reports a manual state even though the unit keeps calling its control mode \"schedule\". Both values are derived from the same field, so they cannot disagree.",
-    "pl": "Stan sterowania nie przeczy już czasowi trwania: ustawienie na stałe oraz trwający override czasowy pokazują sterowanie ręczne, mimo że urządzenie dalej nazywa swój tryb sterowania harmonogramem. Obie wartości wyliczane są z tego samego pola, więc nie mogą się rozjechać."
-  },
-  "1.0.10": {
-    "en": "Fixes the operating mode reported for a setting made permanently: the unit leaves requestedLevel empty and carries the mode in the effective level, so the app no longer falls back to the next scheduled event and reports the previous mode. Operating mode and effective level are now recorded in Insights.",
-    "pl": "Poprawia tryb pracy zgłaszany dla ustawienia wprowadzonego na stałe: urządzenie zostawia requestedLevel pusty i niesie tryb w poziomie efektywnym, więc aplikacja nie cofa się już do następnego zdarzenia harmonogramu i nie pokazuje poprzedniego biegu. Tryb pracy i poziom efektywny trafiają teraz do Insights."
-  },
-  "1.0.9": {
-    "en": "Read the operating mode from the field that actually holds it, so a mode set until the next schedule change is no longer reported as the previous one.",
-    "pl": "Odczyt trybu pracy z pola, które naprawdę go niesie, więc tryb ustawiony do następnej zmiany harmonogramu nie jest już raportowany jako poprzedni."
-  },
-  "1.0.8": {
-    "en": "The operating mode is now read from the mode the unit was asked for instead of its effective ventilation level, and that effective level is exposed as its own sensor.",
-    "pl": "Tryb pracy jest teraz odczytywany z trybu zażądanego od urządzenia, a nie z jego efektywnego poziomu wentylacji, który stał się osobnym czujnikiem."
-  },
-  "1.0.7": {
-    "en": "Fixed Controller mode readback when activated in the Vasco app.",
-    "pl": "Naprawiono odczyt trybu Regulator włączonego w aplikacji Vasco."
-  },
-  "1.0.6": {
-    "en": "Added Controller mode (level 5) to device controls and Flow cards, with effective-state confirmation.",
-    "pl": "Dodano tryb Regulator (poziom 5) do sterowania i kart Flow, z potwierdzeniem rzeczywistego stanu."
-  },
-  "1.0.5": {
-    "en": "Added automated, validated delivery of versioned releases to Homey Developer Tools.",
-    "pl": "Dodano automatyczne, walidowane dostarczanie wersjonowanych wydań do Homey Developer Tools."
-  },
-  "1.0.4": {
-    "en": "Fixed consecutive mode changes briefly replaying an earlier ventilation level.",
-    "pl": "Naprawiono chwilowe przywracanie wcześniejszego biegu podczas kolejnych zmian trybu rekuperacji."
-  },
-  "1.0.3": {
-    "en": "Improved command reliability with bounded retries for temporary Vasco connection failures.",
-    "pl": "Poprawiono niezawodność sterowania dzięki ograniczonym ponowieniom przy chwilowych błędach połączenia z Vasco."
-  },
-  "1.0.2": {
-    "en": "Clarified the gateway requirements and initial Vasco Climate Control setup.",
-    "pl": "Doprecyzowano wymagania dotyczące bramki i początkowej konfiguracji Vasco Climate Control."
-  },
-  "1.0.1": {
-    "en": "Improved the ventilation-unit Flow card icon.",
-    "pl": "Poprawiono widoczność ikony rekuperatora na kartach Flow."
-  },
-  "1.0.0": {
-    "en": "Initial community release for Vasco/Kermi D, T and X ventilation units. Tested with Vasco X500.",
-    "pl": "Pierwsze wydanie społecznościowe dla rekuperatorów Vasco/Kermi serii D, T i X. Przetestowano z Vasco X500."
-  }
+    "1.0.12": {
+        "en": "Fixed the reported mode staying at an old value while a speed set until the next schedule change ran at a different one.",
+        "pl": "Naprawiono pokazywanie starego biegu, gdy bieg ustawiony do następnej zmiany harmonogramu pracował na innym."
+    },
+    "1.0.11": {
+        "en": "Control state no longer contradicts control duration: a setting made permanently, or a timed override still running, now reports a manual state even though the unit keeps calling its control mode \"schedule\". Both values are derived from the same field, so they cannot disagree.",
+        "pl": "Stan sterowania nie przeczy już czasowi trwania: ustawienie na stałe oraz trwający override czasowy pokazują sterowanie ręczne, mimo że urządzenie dalej nazywa swój tryb sterowania harmonogramem. Obie wartości wyliczane są z tego samego pola, więc nie mogą się rozjechać."
+    },
+    "1.0.10": {
+        "en": "Fixes the operating mode reported for a setting made permanently: the unit leaves requestedLevel empty and carries the mode in the effective level, so the app no longer falls back to the next scheduled event and reports the previous mode. Operating mode and effective level are now recorded in Insights.",
+        "pl": "Poprawia tryb pracy zgłaszany dla ustawienia wprowadzonego na stałe: urządzenie zostawia requestedLevel pusty i niesie tryb w poziomie efektywnym, więc aplikacja nie cofa się już do następnego zdarzenia harmonogramu i nie pokazuje poprzedniego biegu. Tryb pracy i poziom efektywny trafiają teraz do Insights."
+    },
+    "1.0.9": {
+        "en": "Read the operating mode from the field that actually holds it, so a mode set until the next schedule change is no longer reported as the previous one.",
+        "pl": "Odczyt trybu pracy z pola, które naprawdę go niesie, więc tryb ustawiony do następnej zmiany harmonogramu nie jest już raportowany jako poprzedni."
+    },
+    "1.0.8": {
+        "en": "The operating mode is now read from the mode the unit was asked for instead of its effective ventilation level, and that effective level is exposed as its own sensor.",
+        "pl": "Tryb pracy jest teraz odczytywany z trybu zażądanego od urządzenia, a nie z jego efektywnego poziomu wentylacji, który stał się osobnym czujnikiem."
+    },
+    "1.0.7": {
+        "en": "Fixed Controller mode readback when activated in the Vasco app.",
+        "pl": "Naprawiono odczyt trybu Regulator włączonego w aplikacji Vasco."
+    },
+    "1.0.6": {
+        "en": "Added Controller mode (level 5) to device controls and Flow cards, with effective-state confirmation.",
+        "pl": "Dodano tryb Regulator (poziom 5) do sterowania i kart Flow, z potwierdzeniem rzeczywistego stanu."
+    },
+    "1.0.5": {
+        "en": "Added automated, validated delivery of versioned releases to Homey Developer Tools.",
+        "pl": "Dodano automatyczne, walidowane dostarczanie wersjonowanych wydań do Homey Developer Tools."
+    },
+    "1.0.4": {
+        "en": "Fixed consecutive mode changes briefly replaying an earlier ventilation level.",
+        "pl": "Naprawiono chwilowe przywracanie wcześniejszego biegu podczas kolejnych zmian trybu rekuperacji."
+    },
+    "1.0.3": {
+        "en": "Improved command reliability with bounded retries for temporary Vasco connection failures.",
+        "pl": "Poprawiono niezawodność sterowania dzięki ograniczonym ponowieniom przy chwilowych błędach połączenia z Vasco."
+    },
+    "1.0.2": {
+        "en": "Clarified the gateway requirements and initial Vasco Climate Control setup.",
+        "pl": "Doprecyzowano wymagania dotyczące bramki i początkowej konfiguracji Vasco Climate Control."
+    },
+    "1.0.1": {
+        "en": "Improved the ventilation-unit Flow card icon.",
+        "pl": "Poprawiono widoczność ikony rekuperatora na kartach Flow."
+    },
+    "1.0.0": {
+        "en": "Initial community release for Vasco/Kermi D, T and X ventilation units. Tested with Vasco X500.",
+        "pl": "Pierwsze wydanie społecznościowe dla rekuperatorów Vasco/Kermi serii D, T i X. Przetestowano z Vasco X500."
+    }
 }
