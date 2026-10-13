@@ -205,13 +205,21 @@ test('Controller reported as effective level 13 alongside requestedLevel 5 stays
   );
 });
 
+// `manualSettingActiveTill: -1` is explicit here on purpose. The property this
+// test describes - a selected mode whose number differs from the level the unit
+// runs at - was only ever RECORDED for a permanent selection, and the recorded
+// Holidays sample below pins exactly that. This test previously inherited
+// `manualSettingActiveTill: 0` from the helper's default by accident, which made
+// it assert that `requestedLevel` outranks `level` until the next schedule
+// change - the opposite of what the 2026-10-06 recording showed, where
+// `requestedLevel` held a stale 2 while the unit ran mode 1.
 test('the selected mode follows requestedLevel while the effective level follows level', () => {
-  const holidays = toDeviceState(realX500Shape({ level: 4, requestedLevel: 6 }));
+  const holidays = toDeviceState(realX500Shape({ level: 4, requestedLevel: 6, manualSettingActiveTill: -1 }));
 
   assert.equal(holidays.mode, 6);
   assert.equal(holidays.effectiveLevel, 4);
 
-  const controller = toDeviceState(realX500Shape({ level: 2, requestedLevel: 5 }));
+  const controller = toDeviceState(realX500Shape({ level: 2, requestedLevel: 5, manualSettingActiveTill: -1 }));
   assert.equal(controller.mode, 5);
   assert.equal(controller.effectiveLevel, 2);
 });
@@ -259,7 +267,7 @@ function pickLevels({ mode, effectiveLevel }) {
 // `requestedLevel` still held 2 from an override made the evening before.
 // Reading the mode from `requestedLevel` made the schedule flow retry five
 // times and then report a failure for a change that had succeeded.
-test('a setting that runs until the next schedule change takes the mode from nextValue', () => {
+test('a setting that runs until the next schedule change ignores a stale requestedLevel', () => {
   const state = toDeviceState(realX500Shape({
     level: 1,
     requestedLevel: 2,
@@ -297,6 +305,30 @@ test('a permanent setting with no requestedLevel takes the mode from the effecti
   assert.equal(state.effectiveLevel, 3);
 });
 
+// RECORDED from the owner's X500 on 2026-10-13 at 12:33, read straight from the
+// cloud while the unit physically ran speed 3, set from the wired panel. This is
+// the sample that was missing on 2026-10-06: there `nextValue` and `level` BOTH
+// said 1, so that recording could not tell which field carried the mode, and the
+// rule "take nextValue until the next schedule change" was adopted on evidence
+// that did not discriminate. Here they finally disagree - and `nextValue` is the
+// one that is wrong. It held a leftover 1 while the unit ran 3, and this account's
+// cloud schedule is empty, so there is no "next event" for it to describe.
+test('a setting that runs until the next schedule change ignores a stale nextValue', () => {
+  const state = toDeviceState(realX500Shape({
+    level: 3,
+    requestedLevel: null,
+    nextParameter: 'requestedLevel',
+    nextValue: 1,
+    manualSettingActiveTill: 0,
+    controlMode: 'schedule',
+    actualFanSpeedInlet: 100,
+    actualFanSpeedExhaust: 100,
+  }));
+
+  assert.equal(state.mode, 3);
+  assert.equal(state.effectiveLevel, 3);
+});
+
 // Holidays is the counter-case: its effective level (4) differs from its mode
 // number (6), so there the unit DOES fill requestedLevel and it must win.
 test('a permanent setting with a requestedLevel still prefers it over the level', () => {
@@ -324,7 +356,12 @@ test('a unit reporting neither field falls back to the effective level', () => {
   assert.equal(state.mode, 2);
 });
 
-test('nextValue is ignored when it does not name the mode field', () => {
+// This used to assert that `requestedLevel` wins here, on an INVENTED shape
+// (`nextParameter: 'somethingElse'`). It contradicted the recording from
+// 2026-10-06, where `requestedLevel` held a stale 2 while the unit ran mode 1
+// under exactly this condition. Until the next schedule change, neither
+// `requestedLevel` nor `nextValue` is evidence - only `level` is.
+test('until the next schedule change, neither nextValue nor requestedLevel outranks the level', () => {
   const state = toDeviceState(realX500Shape({
     level: 2,
     requestedLevel: 3,
@@ -333,5 +370,5 @@ test('nextValue is ignored when it does not name the mode field', () => {
     manualSettingActiveTill: 0,
   }));
 
-  assert.equal(state.mode, 3);
+  assert.equal(state.mode, 2);
 });
