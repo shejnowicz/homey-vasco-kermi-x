@@ -372,3 +372,44 @@ test('until the next schedule change, neither nextValue nor requestedLevel outra
 
   assert.equal(state.mode, 2);
 });
+
+// Found by review on PR #17, and the suite did not catch it: the command-builder
+// test for this case builds `state` by hand with `mode: 6`, so it never exercised
+// what the mapper actually produces. Third time this area has shipped a green test
+// on a shape the mapper could not make.
+//
+// Holidays runs at effective level 4, which is also Auto's number, so `level`
+// CANNOT express it. Reading the mode from the level alone would report Auto, and
+// `isModeConfirmed` requires canonical mode 6 for a Holidays-until-schedule
+// command - so the command would retry and then report a failure for a change
+// that had succeeded.
+test('Holidays until the next schedule change keeps its canonical mode', () => {
+  const state = toDeviceState(realX500Shape({
+    level: 4,
+    requestedLevel: 6,
+    manualSettingActiveTill: 0,
+    controlMode: 'schedule',
+  }));
+
+  assert.equal(state.mode, 6);
+  assert.equal(state.effectiveLevel, 4);
+
+  // The integration the hand-built test skipped: the mapper's own output must
+  // satisfy the confirmation the command path waits on.
+  const { isModeConfirmed } = require('../../lib/vasco-command-builder');
+  assert.equal(
+    isModeConfirmed(state, { mode: 'holidays', duration: { type: 'schedule' } }),
+    true,
+  );
+});
+
+test('a level-expressible requestedLevel is still ignored until the next schedule change', () => {
+  // The 2026-10-06 recording: requestedLevel held a stale 2 while the unit ran 1.
+  const state = toDeviceState(realX500Shape({
+    level: 1,
+    requestedLevel: 2,
+    manualSettingActiveTill: 0,
+  }));
+
+  assert.equal(state.mode, 1);
+});
